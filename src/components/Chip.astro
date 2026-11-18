@@ -1,0 +1,34 @@
+---
+import { cx } from "~/features/style/utils";
+
+// A pill label: article categories today, any other short tag later. `selected` is the filled state a
+// filter uses to say it is on; static chips never set it.
+type Props = {
+  /** Prefer this over slotted children; the slot is there for markup a string cannot carry. */
+  label?: string | null;
+  selected?: boolean;
+  /** `true` adds the hover and press treatment a chip inside a `group/chip` link or button wants. */
+  interactive?: boolean;
+  class?: string;
+};
+
+const { label, selected = false, interactive = false, class: className } = Astro.props;
+
+const base =
+  "inline-flex h-44 w-fit items-center whitespace-nowrap rounded-full px-20 text-body-10 leading-none transition duration-150 ease-out motion-reduce:transition-none";
+
+const states = {
+  selected: "bg-ink text-white",
+  default: "bg-surface text-ink",
+};
+
+const classes = cx(
+  base,
+  states[selected ? "selected" : "default"],
+  interactive && "group-active/chip:scale-96 motion-reduce:group-active/chip:scale-100",
+  interactive && (selected ? "group-hover/chip:bg-ink-hover" : "group-hover/chip:bg-hairline"),
+  className
+);
+---
+
+<span class={classes}>{label ?? <slot />}</span>

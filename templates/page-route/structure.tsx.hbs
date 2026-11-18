@@ -1,0 +1,12 @@
+      S.listItem()
+        .title("{{titleCase routePrefix}}")
+        .icon(() => <>📄</>)
+        .child(
+          localeGroupedList(S, {
+            id: "{{kebabCase documentType}}",
+            title: "{{titleCase routePrefix}}",
+            schemaType: "{{camelCase documentType}}",
+          })
+        ),
+
+      // PLOP: Add Structure

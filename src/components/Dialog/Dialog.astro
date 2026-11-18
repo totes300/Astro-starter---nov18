@@ -1,0 +1,59 @@
+---
+import Icon from "~/components/Icon/Icon.astro";
+import { uiStrings } from "~/features/i18n/strings";
+import { cx } from "~/features/style/utils";
+
+// Ships closed, with whatever is slotted; the behavior lives in `DialogElement`.
+type Props = {
+  /** id of the heading that names the panel. Pass one whenever the content renders its own heading. */
+  labelledBy?: string;
+  /** Fallback name, for a panel with no heading of its own. */
+  label?: string;
+  placement?: "center" | "side";
+  closeLabel?: string;
+  class?: string;
+};
+
+const {
+  labelledBy,
+  label,
+  placement = "center",
+  closeLabel = uiStrings(Astro.locals.locale).control.close,
+  class: className,
+} = Astro.props;
+
+// `EXIT_MS` in DialogElement is the closing half of these durations and has to match.
+const base =
+  "isolate m-0 max-h-none max-w-none bg-white p-0 text-ink opacity-0 transition duration-300 ease-in backdrop:bg-ink/20 backdrop:opacity-0 backdrop:transition-opacity backdrop:duration-300 data-open:opacity-100 data-open:duration-500 data-open:ease-out data-open:backdrop:opacity-100 data-open:backdrop:duration-500 motion-reduce:transition-none motion-reduce:backdrop:transition-none";
+
+// The side panel floats 8 in from the viewport on every edge it touches, so it reads as an overlay, not a new page.
+const panels = {
+  center:
+    "inset-16 m-auto h-fit max-h-full w-auto max-w-640 scale-98 overflow-hidden rounded-16 shadow-panel data-open:scale-100",
+  side: "inset-8 h-auto w-auto translate-x-full overflow-hidden rounded-16 shadow-panel data-open:translate-x-0 md:left-auto md:w-560",
+};
+
+const contents = {
+  center: "max-h-full overflow-y-auto overscroll-contain p-24 pt-64 md:p-40 md:pt-72",
+  side: "h-full overflow-y-auto overscroll-contain px-24 pt-64 pb-32 md:px-40 md:pt-72 md:pb-40",
+};
+---
+
+<modal-dialog class="contents">
+  <dialog data-dialog aria-label={labelledBy ? undefined : label} aria-labelledby={labelledBy} class={cx(base, panels[placement], className)}>
+    <button
+      type="button"
+      data-dialog-close
+      aria-label={closeLabel}
+      class="absolute top-12 right-12 z-1 flex size-40 items-center justify-center rounded-full bg-surface text-ink transition duration-150 ease-out hover:bg-hairline active:scale-96 motion-reduce:transition-none md:top-16 md:right-16"
+    >
+      <Icon name="close" class="size-16" />
+    </button>
+
+    <div data-dialog-content data-lenis-prevent class={contents[placement]}><slot /></div>
+  </dialog>
+</modal-dialog>
+
+<script>
+  import '~/components/Dialog/DialogElement'
+</script>

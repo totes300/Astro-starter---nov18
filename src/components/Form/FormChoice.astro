@@ -1,0 +1,108 @@
+---
+import Icon from "~/components/Icon/Icon.astro";
+import { cx } from "~/features/style/utils";
+
+// One option row: the box or dial, and the text that turns the whole row into a hit area. Shared by
+// the standalone checkbox and by both group types, which own the label, the error and the name.
+type Props = {
+  type: "checkbox" | "radio";
+  name: string;
+  label: string;
+  id?: string;
+  value?: string;
+  checked?: boolean;
+  required?: boolean;
+  disabled?: boolean;
+  describedBy?: string;
+  invalid?: boolean;
+  /** `pill` sets the option as a toggle in a row, for a group answering one question. */
+  look?: "box" | "pill";
+  class?: string;
+};
+
+const {
+  type,
+  name,
+  label,
+  id = name,
+  value,
+  checked,
+  required,
+  disabled,
+  describedBy,
+  invalid,
+  look = "box",
+  class: className,
+} = Astro.props;
+
+// A box or a dial: white with a field-edge border, ink once checked. Keyboard focus is painted globally.
+const CONTROL_CLASS =
+  "peer size-20 shrink-0 cursor-inherit appearance-none border border-field-edge bg-white " +
+  "transition-colors duration-150 ease-out motion-reduce:transition-none " +
+  "checked:border-ink checked:bg-ink group-hover/choice:border-ink-muted checked:group-hover/choice:bg-ink-hover " +
+  "disabled:border-hairline disabled:bg-surface disabled:checked:bg-ink-muted " +
+  "group-data-invalid/field:border-danger";
+
+// The mark rides on top of the control, so the whole box stays one native hit target.
+const MARK_CLASS = "pointer-events-none absolute text-white opacity-0 transition-opacity peer-checked:opacity-100";
+
+// A pill toggle: the native control is visually hidden and the pill reports its state, focus included.
+const PILL_CLASS =
+  "group/choice inline-flex h-40 w-fit items-center rounded-full bg-surface px-20 text-body-10 leading-none text-ink lg:h-44 " +
+  "transition duration-150 ease-out motion-reduce:transition-none " +
+  "hover:bg-hairline has-checked:bg-ink has-checked:text-white has-checked:hover:bg-ink-hover " +
+  "has-focus-visible:outline-2 has-focus-visible:outline-focus has-focus-visible:outline-offset-2 " +
+  "active:scale-96 motion-reduce:active:scale-100 has-disabled:cursor-not-allowed has-disabled:opacity-50 has-disabled:active:scale-100 " +
+  "group-data-invalid/field:ring-2 group-data-invalid/field:ring-danger group-data-invalid/field:ring-inset";
+---
+
+{
+  look === 'pill' ? (
+    <label class={cx(PILL_CLASS, disabled ? 'cursor-not-allowed' : 'cursor-pointer', className)}>
+      <input
+        type={type}
+        id={id}
+        name={name}
+        value={value}
+        checked={checked}
+        required={required}
+        disabled={disabled}
+        aria-describedby={describedBy}
+        aria-invalid={invalid ? 'true' : undefined}
+        data-field-control
+        class="peer sr-only"
+      />
+      {label}
+    </label>
+  ) : (
+    <label
+      class={cx('group/choice flex w-fit items-center gap-12', disabled ? 'cursor-not-allowed' : 'cursor-pointer', className)}
+    >
+      <span class="relative flex items-center justify-center">
+        <input
+          type={type}
+          id={id}
+          name={name}
+          value={value}
+          checked={checked}
+          required={required}
+          disabled={disabled}
+          aria-describedby={describedBy}
+          aria-invalid={invalid ? 'true' : undefined}
+          data-field-control
+          class={cx(CONTROL_CLASS, type === 'radio' ? 'rounded-full' : 'rounded-6')}
+        />
+
+        {
+          type === 'radio' ? (
+            <span class={cx(MARK_CLASS, 'size-6 rounded-full bg-current')} />
+          ) : (
+            <Icon name="check" class={cx(MARK_CLASS, 'size-12')} />
+          )
+        }
+      </span>
+
+      <span class={cx('text-eyebrow font-normal', disabled ? 'text-ink-muted/60' : 'text-ink-muted')}>{label}</span>
+    </label>
+  )
+}

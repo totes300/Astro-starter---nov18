@@ -1,0 +1,76 @@
+---
+import Icon from "~/components/Icon/Icon.astro";
+import { fallbackLang } from "~/features/i18n/content-lang";
+import type { AlternateResult } from "~/features/i18n/fragment";
+import { readHomeUriByLocale } from "~/features/i18n/homepage-locales";
+import { buildLanguageLinks } from "~/features/i18n/language-links";
+import { uiStrings } from "~/features/i18n/strings";
+import { safeHref } from "~/features/sanity/link/safe-href";
+import LanguageSwitcher from "~/features/site/LanguageSwitcher/LanguageSwitcher.astro";
+import { languageMenu } from "~/features/site/LanguageSwitcher/language-menu";
+import SiteNavLink from "~/features/site/SiteNavLink.astro";
+import { withLocalePrefix } from "~/sanity/i18n";
+import type { SiteHeaderQResult } from "~/sanity/types";
+import { getDraftModeProps } from "../../../sanity/lib/draft-mode";
+import { loadQuery } from "../../../sanity/lib/load-query";
+import MobileMenu from "./MobileMenu.astro";
+import NavTrack from "./NavTrack.astro";
+import { SiteHeaderQ } from "./query";
+
+type Props = {
+  /** The page's `alternates`, which the menu's language switcher links to. */
+  translations?: (AlternateResult | null | undefined)[] | null;
+};
+
+const { translations } = Astro.props;
+
+const [{ data: siteHeader }, homeUriByLocale] = await Promise.all([
+  loadQuery<SiteHeaderQResult>({ query: SiteHeaderQ, ...getDraftModeProps(Astro) }),
+  readHomeUriByLocale(),
+]);
+
+// A link to an unpublished or unserved page resolves to no href; an empty item would still take its slot.
+const links = (siteHeader?.header?.links ?? []).filter((link) => safeHref(link.href));
+const contacts = (siteHeader?.contacts ?? []).flatMap(({ key, name, link }) =>
+  link && safeHref(link.href) ? [{ key, name, link }] : []
+);
+const menu = languageMenu(
+  buildLanguageLinks({ locale: Astro.locals.locale, uri: Astro.locals.path, alternates: translations, homeUriByLocale })
+);
+const strings = uiStrings(Astro.locals.locale);
+const contentLang = fallbackLang(siteHeader?.language, Astro.locals.locale);
+const homeHref = withLocalePrefix(Astro.locals.locale, "/");
+const homeLabel = siteHeader?.name ?? strings.home;
+---
+
+{
+  links.length > 0 && (
+    <header class="relative z-1 flex h-(--header-height) shrink-0 items-center">
+      <div class="mx-auto flex w-full max-w-(--page-width) items-center justify-between px-(--page-gutter)">
+        <a href={homeHref} aria-label={homeLabel} class="flex shrink-0 rounded-4 text-ink">
+          <Icon name="logo-mark" class="size-36 lg:size-40" />
+        </a>
+
+        <nav aria-label={strings.landmark.primary} class="hidden lg:block">
+          <NavTrack lang={contentLang}>
+            {links.map((link) => (
+              <li>
+                <SiteNavLink link={link} look="segmented" />
+              </li>
+            ))}
+          </NavTrack>
+        </nav>
+
+        <MobileMenu
+          class="lg:hidden"
+          links={links}
+          contacts={contacts}
+          lang={contentLang}
+          labels={{ open: strings.control.menu, close: strings.control.close, nav: strings.landmark.primary }}
+        >
+          {menu && <LanguageSwitcher slot="language" id="menu-language" menu={menu} />}
+        </MobileMenu>
+      </div>
+    </header>
+  )
+}

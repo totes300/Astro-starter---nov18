@@ -1,0 +1,87 @@
+---
+import Button from "~/components/Button.astro";
+import Icon from "~/components/Icon/Icon.astro";
+import type { LinkFragmentResult } from "~/features/sanity/link/fragment";
+import SanityLink from "~/features/sanity/link/SanityLink.astro";
+import SiteNavLink from "~/features/site/SiteNavLink.astro";
+import { cx } from "~/features/style/utils";
+
+// The header's links below `lg`: the trigger stays where it is and becomes Close, and only a panel fades in under the header.
+// The `language` slot is the switcher for the panel's bottom row. Both labels are rendered so the trigger never changes size.
+type MenuLink = LinkFragmentResult & { key: string };
+type MenuContact = { key: string; name?: string | null; link: LinkFragmentResult };
+
+type Props = {
+  links: MenuLink[];
+  contacts: MenuContact[];
+  lang?: string;
+  /** In the page's language, from `uiStrings()`. */
+  labels: { open: string; close: string; nav: string };
+  class?: string;
+};
+
+const { links, contacts, lang, labels, class: className } = Astro.props;
+
+const panelId = "site-menu";
+---
+
+<mobile-menu class="contents">
+  <Button variant="pill" data-menu-trigger aria-expanded="false" aria-controls={panelId} class={className}>
+    <span class="grid justify-items-end">
+      <span class="col-start-1 row-start-1 group-aria-expanded/button:invisible">{labels.open}</span>
+      <span class="invisible col-start-1 row-start-1 group-aria-expanded/button:visible">{labels.close}</span>
+    </span>
+    <Fragment slot="right-icon">
+      <Icon name="menu" class="size-14 group-aria-expanded/button:hidden" />
+      <Icon name="close" class="hidden size-14 group-aria-expanded/button:block" />
+    </Fragment>
+  </Button>
+
+  <div
+    id={panelId}
+    data-menu-panel
+    data-lenis-prevent
+    inert
+    class={cx(
+      'pointer-events-none fixed inset-0 -z-1 flex flex-col overflow-y-auto overscroll-contain bg-white px-(--page-gutter) pt-(--menu-top) pb-24 opacity-0',
+      'transition-opacity duration-150 ease-out data-open:pointer-events-auto data-open:opacity-100 data-open:duration-250 motion-reduce:transition-none',
+      className
+    )}
+  >
+    <nav aria-label={labels.nav} data-page-out="fade" class="mt-40">
+      <ul lang={lang} class="flex flex-col">
+        {
+          links.map((link) => (
+            <li>
+              <SiteNavLink link={link} look="row" />
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <div data-page-out="fade" class="mt-auto flex items-center justify-between gap-16 pt-40">
+      {
+        contacts.length > 0 && (
+          <ul lang={lang} class="flex flex-wrap gap-x-16 gap-y-4">
+            {contacts.map((contact) => (
+              <li>
+                <SanityLink
+                  link={contact.link}
+                  class="text-eyebrow font-normal text-ink-body transition-colors duration-150 ease-out hover:text-ink"
+                >
+                  {contact.name ?? contact.link.text}
+                </SanityLink>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+      <div class="ml-auto"><slot name="language" /></div>
+    </div>
+  </div>
+</mobile-menu>
+
+<script>
+  import './MobileMenuElement'
+</script>

@@ -1,0 +1,12 @@
+---
+import { stegaClean } from "@sanity/client/stega";
+import { absoluteUrl } from "~/lib/env";
+import { FEED_MIME, FEED_PATH, hasFeed } from "./constants";
+
+/** Feed autodiscovery for the `head` slot, on the default language's pages only: the feed is written in it. */
+type Props = { title: string; locale: string };
+
+const { title, locale } = Astro.props;
+---
+
+{hasFeed(locale) && <link rel="alternate" type={FEED_MIME} title={stegaClean(title)} href={absoluteUrl(FEED_PATH)} />}

@@ -1,0 +1,124 @@
+# Every push and pull request is checked. A push to main, or a manual run, also deploys the Worker, but only once the
+# repository is connected: the repository variable CLOUDFLARE_ACCOUNT_ID. Words alone (docs, skills) run nothing.
+# Details: docs/features/ci.md
+
+name: CI and deploy
+
+on:
+  push:
+    branches: ["**"]
+    paths-ignore: ["**/*.md", "docs/**", ".agents/**", ".claude/**"]
+  pull_request:
+    paths-ignore: ["**/*.md", "docs/**", ".agents/**", ".claude/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A pull request's older run is cut short by a newer push; a run on main never is, so a deploy never stops halfway.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  LEFTHOOK: "0"
+  IS_RELEASE: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main') || (github.event_name == 'pull_request' && github.base_ref == 'main') }}
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The repository's own values when it has them, else placeholders the env schema accepts: nothing here reads Sanity.
+      - uses: ./.github/actions/setup
+        with:
+          site-origin: http://127.0.0.1:4321
+          sanity-project-id: ${{ secrets.PUBLIC_SANITY_PROJECT_ID || 'placeholder' }}
+          sanity-dataset: ${{ secrets.PUBLIC_SANITY_DATASET || 'production' }}
+          sanity-view-token: ${{ secrets.SANITY_API_VIEW_TOKEN || 'placeholder' }}
+          sanity-edit-token: ${{ secrets.SANITY_API_EDIT_TOKEN || 'placeholder' }}
+      # The commit hook already ran this on a working branch; a release gets it in CI regardless, since the hook can be skipped.
+      - name: Types and lint
+        if: env.IS_RELEASE == 'true'
+        run: npm run check
+      - run: npm test
+
+  deploy:
+    name: Deploy to Cloudflare
+    # A repository variable, not a secret, because a job's `if` cannot read secrets. Unset, the job never starts, so an
+    # unconnected repository gets no production environment and no deployment record.
+    if: >-
+      vars.CLOUDFLARE_ACCOUNT_ID != ''
+      && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main'))
+    needs: [checks]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: ${{ vars.PUBLIC_SITE_URL }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      SITE: ${{ vars.PUBLIC_SITE_URL }}
+    steps:
+      # The build bakes whatever .env says, silently, so a missing value fails here rather than in every canonical.
+      - name: Check the production values
+        env:
+          PROJECT_ID: ${{ vars.PUBLIC_SANITY_PROJECT_ID }}
+          DATASET: ${{ vars.PUBLIC_SANITY_DATASET }}
+          TURNSTILE_SITE_KEY: ${{ vars.PUBLIC_TURNSTILE_SITE_KEY }}
+          VIEW_TOKEN: ${{ secrets.SANITY_API_VIEW_TOKEN }}
+          EDIT_TOKEN: ${{ secrets.SANITY_API_EDIT_TOKEN }}
+        run: |
+          missing=()
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing+=("the CLOUDFLARE_API_TOKEN secret")
+          [ -n "$PROJECT_ID" ] || missing+=("the PUBLIC_SANITY_PROJECT_ID variable")
+          [ -n "$DATASET" ] || missing+=("the PUBLIC_SANITY_DATASET variable")
+          [ -n "$TURNSTILE_SITE_KEY" ] || missing+=("the PUBLIC_TURNSTILE_SITE_KEY variable")
+          [ -n "$VIEW_TOKEN" ] || missing+=("the SANITY_API_VIEW_TOKEN secret")
+          [ -n "$EDIT_TOKEN" ] || missing+=("the SANITY_API_EDIT_TOKEN secret")
+
+          case "$SITE" in
+            https://localhost* | https://127.0.0.1*) missing+=("a public PUBLIC_SITE_URL, not a local one") ;;
+            https://?*) ;;
+            *) missing+=("the PUBLIC_SITE_URL variable, an https:// origin") ;;
+          esac
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            for item in "${missing[@]}"; do
+              echo "::error::The production environment needs ${item}. See docs/features/ci.md."
+            done
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          site-origin: ${{ vars.PUBLIC_SITE_URL }}
+          sanity-project-id: ${{ vars.PUBLIC_SANITY_PROJECT_ID }}
+          sanity-dataset: ${{ vars.PUBLIC_SANITY_DATASET }}
+          turnstile-site-key: ${{ vars.PUBLIC_TURNSTILE_SITE_KEY }}
+          umami-website-id: ${{ vars.PUBLIC_UMAMI_WEBSITE_ID }}
+          studio-base-path: ${{ vars.PUBLIC_SANITY_STUDIO_BASE_PATH }}
+          sanity-view-token: ${{ secrets.SANITY_API_VIEW_TOKEN }}
+          sanity-edit-token: ${{ secrets.SANITY_API_EDIT_TOKEN }}
+      # The build output holds the secrets in .dev.vars, so it is built here and never handed over as an artifact.
+      - run: npm run build
+      - name: Confirm the build names the live origin
+        run: |
+          if ! grep -rqF --include='*.mjs' -- "$SITE" dist/server; then
+            echo "::error::The build does not name $SITE. The Cloudflare build reads .env, never the shell."
+            exit 1
+          fi
+      # One new version, live at once; the runtime secrets stay on the Worker and are never part of a deploy.
+      # DEPLOY_REPOSITORY tells the Studio's Redeploy site button which repository's workflow to dispatch.
+      - name: Deploy
+        env:
+          MESSAGE: ${{ github.event_name == 'workflow_dispatch' && 'Manual run' || github.sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: npx wrangler deploy --message "${MESSAGE:0:40}" --var "DEPLOY_REPOSITORY:$REPOSITORY"

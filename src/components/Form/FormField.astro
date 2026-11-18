@@ -1,0 +1,57 @@
+---
+import { cx } from "~/features/style/utils";
+import { FIELD_ERROR_CLASS } from "./styles";
+
+// The shell every form field shares: a filled pill, the label kept for assistive tech (the placeholder carries
+// it on screen, so every field reads the same at rest), and the error under the pill. The control is the slot.
+type Props = {
+  name: string;
+  label: string;
+  id?: string;
+  error?: string;
+  required?: boolean;
+  filled?: boolean;
+  inline?: boolean;
+  multiline?: boolean;
+  class?: string;
+};
+
+const { name, label, id = name, error, required, filled, inline, multiline, class: className } = Astro.props;
+
+// No border at rest: the fill identifies the field, focus adds the ink ring, an error the danger ring. `relative`
+// so a control stretched across it covers the pill, not the error under it.
+const BOX_CLASS =
+  "relative flex w-full bg-surface transition duration-150 ease-out motion-reduce:transition-none " +
+  "group-hover:bg-hairline group-focus-within:bg-white group-focus-within:ring-2 group-focus-within:ring-ink group-focus-within:ring-inset " +
+  "has-[[data-field-control]:disabled]:bg-surface group-data-invalid:ring-2 group-data-invalid:ring-danger group-data-invalid:ring-inset";
+
+const boxClass = cx(
+  BOX_CLASS,
+  inline && "h-52 items-center gap-16 rounded-full py-4 pr-4 pl-22",
+  !inline && !multiline && "h-52 items-center gap-8 rounded-full px-22",
+  multiline && "items-start gap-8 rounded-24 px-22 py-16"
+);
+---
+
+<form-field
+  data-field
+  class={cx('group relative block', className)}
+  data-filled={filled ? '' : undefined}
+  data-invalid={error ? '' : undefined}
+>
+  <div class={boxClass}>
+    <slot />
+  </div>
+
+  <label for={id} class="sr-only">
+    {label}{required && <span aria-hidden="true">*</span>}
+  </label>
+
+  <p id={`${id}-error`} data-field-error={name} aria-live="polite" class={cx(FIELD_ERROR_CLASS, 'mt-8 block')}>
+    {error}
+  </p>
+</form-field>
+
+<script>
+  import './FormFieldElement'
+</script>

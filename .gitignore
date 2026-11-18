@@ -1,0 +1,35 @@
+# Node dependencies
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+
+# Build
+dist/
+.astro/
+
+# Dataset exports (every document, secrets and submissions included)
+*.tar.gz
+/backups
+
+# Starter content, the one archive that is committed
+!/seed/seed-dataset.tar.gz
+
+# Wrangler: local D1 and Queue state, and dev-only secrets
+.wrangler/
+.dev.vars*
+
+# Screenshots and audits from the browser-testing pass, kept locally
+/browser-checks/

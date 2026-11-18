@@ -1,0 +1,22 @@
+---
+import Icon from "~/components/Icon/Icon.astro";
+import { run } from "~/features/utils/common";
+import type { LinkFragmentResult } from "./fragment";
+
+// Directional affordance for a link: new tab, download, or plain forward navigation.
+type Props = { link?: LinkFragmentResult | null; class?: string };
+
+const { link, class: className } = Astro.props;
+
+const name = run(() => {
+  if (link?.openInNewTab) {
+    return "arrow-up-right";
+  }
+  if (link?.canDownload) {
+    return "arrow-down";
+  }
+  return "arrow-right";
+});
+---
+
+<Icon name={name} class={className} />

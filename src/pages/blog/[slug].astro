@@ -1,0 +1,192 @@
+---
+import { stegaClean } from "@sanity/client/stega";
+import Chip from "~/components/Chip.astro";
+import JsonLd from "~/components/JsonLd.astro";
+import LabelColumns from "~/components/LabelColumns.astro";
+import AuthorDialog from "~/features/blog/author/AuthorDialog.astro";
+import AuthorLink from "~/features/blog/author/AuthorLink.astro";
+import { authorPathPrefix } from "~/features/blog/author/constants";
+import { toggleCategoryHref } from "~/features/blog/category-filter";
+import { formatDate } from "~/features/blog/format-date";
+import { formatReadingTime } from "~/features/blog/reading-time";
+import FeedLink from "~/features/feed/FeedLink.astro";
+import { feedTitle } from "~/features/feed/title";
+import { buildAlternateLinks } from "~/features/i18n/alternates";
+import { readHomeUriByLocale } from "~/features/i18n/homepage-locales";
+import { uiStrings } from "~/features/i18n/strings";
+import { safeHref } from "~/features/sanity/link/safe-href";
+import { hasImage } from "~/features/sanity/media/fragment";
+import SiteShell from "~/features/site/SiteShell.astro";
+import { blogPostingLd, breadcrumbLd, jsonLdGraph, webPageLd } from "~/features/site/seo/structured-data";
+import Web from "~/layouts/Web.astro";
+import { CACHE_TTL, cacheResponse, docCacheTags, SITE_WIDE_CACHE_TAGS } from "~/lib/cache";
+import { absoluteUrl, PUBLIC_SITE_URL } from "~/lib/env";
+import { SANITY_PERSON_DOCUMENT_TYPE } from "~/sanity/constants";
+import { localizeDocumentPath } from "~/sanity/sections";
+import type { ArticlePageQResult } from "~/sanity/types";
+import { getDraftModeProps } from "../../sanity/lib/draft-mode";
+import { loadQuery } from "../../sanity/lib/load-query";
+import SanityImage from "../../sanity/media/SanityImage.astro";
+import { ArticlePageQ } from "../../sanity/queries";
+import SanityRichText from "../../sanity/rich-text/SanityRichText.astro";
+import { getOgImageSrc, loadSite, seo } from "../../sanity/seo";
+
+// Prefix route for `article` documents: /blog/<slug>, prefixed in other languages, found by the full stored URI.
+const uri = Astro.locals.path;
+
+const [{ data: page }, { data: site }, homeUriByLocale] = await Promise.all([
+  loadQuery<ArticlePageQResult>({ query: ArticlePageQ, params: { uri }, ...getDraftModeProps(Astro) }),
+  loadSite(Astro),
+  readHomeUriByLocale(),
+]);
+
+if (!page) {
+  return new Response(null, { status: 404 });
+}
+
+// `person` too, so publishing the author refreshes the byline and the panel it opens.
+cacheResponse(Astro, {
+  ...CACHE_TTL,
+  tags: [...docCacheTags(page), SANITY_PERSON_DOCUMENT_TYPE, ...SITE_WIDE_CACHE_TAGS],
+});
+
+const locale = stegaClean(page.language);
+const strings = uiStrings(locale);
+const canonical = absoluteUrl(uri);
+const alternates = buildAlternateLinks({
+  siteUrl: PUBLIC_SITE_URL,
+  locale,
+  uri,
+  noIndex: page.noIndex,
+  alternates: page.alternates,
+});
+const { title, description, image, robots } = page.seoMetadata ?? {};
+const seoProps = seo(site, {
+  robots,
+  title: title ?? page.title,
+  description,
+  image,
+  canonical,
+  lang: locale,
+  alternates,
+});
+
+// One person serves every language: the byline opens their page in the article's.
+const authorPath = safeHref(stegaClean(page.author?.href)) ?? undefined;
+const authorHref = authorPath && localizeDocumentPath(SANITY_PERSON_DOCUMENT_TYPE, locale, authorPath);
+// Each chip opens the blog filtered to it; without a blog index in this language it stays a plain label.
+const blogUri = stegaClean(page.blog?.uri);
+const categories = (page.categories ?? []).flatMap((category) => {
+  const slug = stegaClean(category.slug);
+
+  return category.name
+    ? [{ name: category.name, href: blogUri && slug ? toggleCategoryHref(blogUri, [], slug) : undefined }]
+    : [];
+});
+const pageJsonLd = jsonLdGraph([
+  webPageLd({
+    name: seoProps.title,
+    url: canonical,
+    description: seoProps.description,
+    siteUrl: PUBLIC_SITE_URL,
+    inLanguage: locale,
+  }),
+  blogPostingLd({
+    headline: page.title ?? undefined,
+    url: canonical,
+    siteUrl: PUBLIC_SITE_URL,
+    description: seoProps.description,
+    datePublished: page.publishedAt ?? undefined,
+    dateModified: page._updatedAt ?? undefined,
+    authorName: page.author?.name ?? undefined,
+    authorUrl: authorHref ? absoluteUrl(authorHref) : undefined,
+    authorId: authorPath ? `${absoluteUrl(authorPath)}#person` : undefined,
+    image: page.image?._id != null ? getOgImageSrc(page.image) : undefined,
+    articleSection: categories.map((category) => category.name),
+    inLanguage: locale,
+  }),
+  // Home > Blog > Article in the article's language; without a blog index in it, the middle rung drops out.
+  breadcrumbLd([
+    { name: strings.home, url: absoluteUrl(homeUriByLocale.get(locale) ?? "/") },
+    { name: page.blog?.title ?? "", url: page.blog?.uri ? absoluteUrl(page.blog.uri) : undefined },
+    { name: page.title ?? "", url: canonical },
+  ]),
+]);
+
+// Built as parts rather than a joined string: each is optional and only the author is a link.
+const readingTime = formatReadingTime(page.content, locale);
+const meta = [
+  page.publishedAt ? { text: formatDate(stegaClean(page.publishedAt), locale) } : null,
+  page.author?.name ? { text: page.author.name, href: authorHref } : null,
+  readingTime ? { text: readingTime } : null,
+].filter((part) => part !== null);
+---
+
+<Web {...seoProps}>
+  <Fragment slot="head">
+    <FeedLink title={feedTitle(seoProps.siteName, page.blog?.title)} locale={locale} />
+  </Fragment>
+  <JsonLd data={pageJsonLd} />
+  <SiteShell showHeader={page.showHeader} showFooter={page.showFooter} translations={page.alternates}>
+    <article
+      data-page-in-place-family={`${uri} ${authorPathPrefix(locale)}`}
+      data-page-in-place-scope
+      class="mx-auto flex w-full max-w-(--page-width) flex-col gap-40 px-(--page-gutter) py-64 lg:gap-64 lg:py-96"
+    >
+      <header class="grid gap-16 lg:grid-cols-(--label-grid) lg:gap-x-24 lg:gap-y-24">
+        <h1 class="text-balance text-headline-10 lg:col-start-2 lg:row-start-1">{page.title}</h1>
+        {
+          meta.length > 0 && (
+            <p class="flex flex-wrap gap-x-12 gap-y-2 text-eyebrow text-ink-muted tabular-nums lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:flex-col lg:pt-16">
+              {meta.map((part) =>
+                part.href ? (
+                  <AuthorLink
+                    name={part.text}
+                    href={part.href}
+                    class="w-fit rounded-4 text-ink underline decoration-1 underline-offset-4 transition-colors duration-150 ease-out hover:text-ink-muted motion-reduce:transition-none"
+                  />
+                ) : (
+                  <span>{part.text}</span>
+                )
+              )}
+            </p>
+          )
+        }
+        {
+          categories.length > 0 && (
+            <ul class="flex flex-wrap gap-8 pt-8 lg:col-start-2 lg:pt-0">
+              {categories.map((category) => (
+                <li>
+                  {category.href ? (
+                    <a href={category.href} class="group/chip inline-flex rounded-full">
+                      <Chip label={category.name} interactive />
+                    </a>
+                  ) : (
+                    <Chip label={category.name} />
+                  )}
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </header>
+      {
+        hasImage(page.image) && (
+          <div class="media-frame aspect-video w-full">
+            <SanityImage
+              media={{ image: page.image, aspectRatio: 16 / 9 }}
+              sizes="100vw lg:1104px"
+              priority
+              class="size-full object-cover"
+            />
+          </div>
+        )
+      }
+      <LabelColumns>
+        <SanityRichText prose value={page.content} class="text-body-10" />
+      </LabelColumns>
+    </article>
+
+    <AuthorDialog hostPath={uri} />
+  </SiteShell>
+</Web>

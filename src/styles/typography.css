@@ -1,0 +1,81 @@
+@theme {
+  /*
+   * Geist faces are declared in fonts.css, which sets the `--font-geist-*` vars.
+   * Each `--font-pixel-*` becomes `font-pixel-square`, `font-pixel-line`, etc.
+   */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-pixel-square: var(--font-geist-pixel-square), ui-monospace, monospace;
+  --font-pixel-grid: var(--font-geist-pixel-grid), ui-monospace, monospace;
+  --font-pixel-circle: var(--font-geist-pixel-circle), ui-monospace, monospace;
+  --font-pixel-triangle: var(--font-geist-pixel-triangle), ui-monospace, monospace;
+  --font-pixel-line: var(--font-geist-pixel-line), ui-monospace, monospace;
+
+  /* Reset default TW font sizes. */
+  --text-\*: initial;
+
+  /*
+    By default, this will clamp the fluid font size between
+    its maximum and minimum values. This approach works well when the site design
+    has a defined max-width. For fully fluid designs, consider removing
+    the clamping from each text rule to allow unlimited scaling.
+  */
+  --fluid-min-w: var(--layout-min-w, 375);
+  --fluid-max-w: var(--layout-max-w, 1600);
+  --fluid-slope: calc((100vw - --spacing(var(--fluid-min-w))) / (var(--fluid-max-w) - var(--fluid-min-w)));
+
+  /* 14px. The label: eyebrows, navigation, meta lines, form labels and errors. Medium so it holds up
+     beside body text one size larger. */
+  --text-eyebrow: --spacing(14);
+  --text-eyebrow--font-weight: 500;
+  --text-eyebrow--line-height: 1.5;
+  --text-eyebrow--letter-spacing: normal;
+
+  /* 12px - 13px. Set in Geist Mono wherever it captions media or code. */
+  --text-caption: clamp(--spacing(12), --spacing(12) + (13 - 12) * var(--fluid-slope), --spacing(13));
+  --text-caption--font-weight: 400;
+  --text-caption--line-height: 1.4;
+  --text-caption--letter-spacing: normal;
+
+  /* 16px. Buttons and pills: one size at every width, so a control never reflows its row. */
+  --text-cta: --spacing(16);
+  --text-cta--font-weight: 500;
+  --text-cta--line-height: 1;
+  --text-cta--letter-spacing: -0.01em;
+
+  /* 16px - 18px. Long-form text starts at 16. */
+  --text-body-10: clamp(--spacing(16), --spacing(16) + (18 - 16) * var(--fluid-slope), --spacing(18));
+  --text-body-10--font-weight: 400;
+  --text-body-10--line-height: 1.5;
+  --text-body-10--letter-spacing: normal;
+
+  /* 20px - 24px. A lead paragraph, and a card or prose subheading at weight 500. */
+  --text-body-20: clamp(--spacing(20), --spacing(20) + (24 - 20) * var(--fluid-slope), --spacing(24));
+  --text-body-20--font-weight: 400;
+  --text-body-20--line-height: 1.4;
+  --text-body-20--letter-spacing: -0.01em;
+
+  /* 24px - 32px. A heading inside prose and a panel's title: one step under the page heading. */
+  --text-title: clamp(--spacing(24), --spacing(24) + (32 - 24) * var(--fluid-slope), --spacing(32));
+  --text-title--font-weight: 500;
+  --text-title--line-height: 1.2;
+  --text-title--letter-spacing: -0.02em;
+
+  /* 32px - 48px */
+  --text-headline-10: clamp(--spacing(32), --spacing(32) + (48 - 32) * var(--fluid-slope), --spacing(48));
+  --text-headline-10--font-weight: 500;
+  --text-headline-10--line-height: 1.1;
+  --text-headline-10--letter-spacing: -0.025em;
+
+  /* 40px - 80px */
+  --text-headline-20: clamp(--spacing(40), --spacing(40) + (80 - 40) * var(--fluid-slope), --spacing(80));
+  --text-headline-20--font-weight: 500;
+  --text-headline-20--line-height: 1.05;
+  --text-headline-20--letter-spacing: -0.03em;
+
+  /* A two-line card title holds together as one block. */
+  --leading-heading: 1.15;
+
+  /* A subheading set at a body size, one step tighter than the body it heads. */
+  --leading-subhead: 1.3;
+}

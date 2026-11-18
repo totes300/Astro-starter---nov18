@@ -1,0 +1,17 @@
+export const {{pascalCase documentType}}PageQ = defineQuery(`${SeoFunctions}
+
+  *[_type == "{{camelCase documentType}}" && defined(uri.current) && uri.current == $uri && ${ConfiguredLocaleFilter}][0]{
+    _id,
+    _type,
+    title,
+    "uri": coalesce(uri.current, "/{{kebabCase routePrefix}}"),
+    ${LocaleField},
+    "noIndex": seoMetadata.noIndex == true,
+    "showHeader": coalesce(showHeader, true),
+    "showFooter": coalesce(showFooter, true),
+    seoMetadata{${SeoMetadataFragment}},
+    ${AlternatesFragment},
+  }
+`)
+
+// PLOP: Add Route Query

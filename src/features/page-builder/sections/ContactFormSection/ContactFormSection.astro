@@ -1,0 +1,30 @@
+---
+import { stegaClean } from "@sanity/client/stega";
+import { ContactFormSectionQ } from "~/features/page-builder/queries";
+import type { SectionProps } from "~/features/page-builder/types";
+import type { ContactFormSectionQResult } from "~/sanity/types";
+import { getDraftModeProps } from "../../../../sanity/lib/draft-mode";
+import { loadQuery } from "../../../../sanity/lib/load-query";
+import ContactForm from "./ContactForm.astro";
+
+type Props = SectionProps;
+
+const { docId, sectionKey } = Astro.props;
+
+const { data: section } = await loadQuery<ContactFormSectionQResult>({
+  query: ContactFormSectionQ,
+  params: { docId, sectionKey },
+  ...getDraftModeProps(Astro),
+});
+---
+
+{
+  section?.content && (
+    <ContactForm
+      {...section.content}
+      settings={section.settings}
+      id={stegaClean(section.settings?.hash) ?? undefined}
+      data-page-builder-section="contactFormSection"
+    />
+  )
+}

@@ -1,0 +1,33 @@
+---
+import { cx } from "~/features/style/utils";
+
+// The header's track: an ink plate under the current page, which a navigation glides to the new page's item,
+// and a white plate that follows the pointer. Its `<li>` items are the slot; see docs/features/view-transitions.md.
+type Props = {
+  lang?: string;
+  class?: string;
+};
+
+const { lang, class: className } = Astro.props;
+---
+
+<nav-track class={cx("group/track relative isolate block rounded-full bg-surface/80 p-4 backdrop-blur-xl", className)}>
+  <span
+    data-hover-plate
+    aria-hidden="true"
+    class="pointer-events-none absolute top-4 left-4 h-32 rounded-full bg-white opacity-0 plate-glide data-on:opacity-100"
+  ></span>
+  <span
+    data-current-plate
+    aria-hidden="true"
+    hidden
+    class="pointer-events-none absolute top-4 left-4 h-32 rounded-full bg-ink plate-glide"
+  ></span>
+  <ul lang={lang} class="relative flex items-center gap-2">
+    <slot />
+  </ul>
+</nav-track>
+
+<script>
+  import './NavTrackElement'
+</script>

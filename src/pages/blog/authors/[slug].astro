@@ -1,0 +1,172 @@
+---
+import { stegaClean } from "@sanity/client/stega";
+import Icon from "~/components/Icon/Icon.astro";
+import JsonLd from "~/components/JsonLd.astro";
+import LabelColumns from "~/components/LabelColumns.astro";
+import ArticleCard from "~/features/blog/ArticleCard.astro";
+import AuthorProfile from "~/features/blog/author/AuthorProfile.astro";
+import { formatDate } from "~/features/blog/format-date";
+import { buildAlternateLinks, sharedAlternates } from "~/features/i18n/alternates";
+import { readHomeUriByLocale } from "~/features/i18n/homepage-locales";
+import { uiStrings } from "~/features/i18n/strings";
+import { safeHref } from "~/features/sanity/link/safe-href";
+import SiteShell from "~/features/site/SiteShell.astro";
+import { breadcrumbLd, itemListLd, jsonLdGraph, personLd, profilePageLd } from "~/features/site/seo/structured-data";
+import Web from "~/layouts/Web.astro";
+import { CACHE_TTL, cacheResponse, docCacheTags, SITE_WIDE_CACHE_TAGS } from "~/lib/cache";
+import { absoluteUrl, PUBLIC_SITE_URL } from "~/lib/env";
+import { SANITY_ARTICLE_DOCUMENT_TYPE, SANITY_PERSON_DOCUMENT_TYPE } from "~/sanity/constants";
+import { sharedDocumentPath } from "~/sanity/sections";
+import type { AuthorPageQResult } from "~/sanity/types";
+import { getDraftModeProps } from "../../../sanity/lib/draft-mode";
+import { loadQuery } from "../../../sanity/lib/load-query";
+import { AuthorPageQ } from "../../../sanity/queries";
+import { getOgImageSrc, loadSite, seo } from "../../../sanity/seo";
+
+// Prefix route for `person` documents. From an article the same profile arrives as a panel instead;
+// this page is what that panel is a view of, never a fallback for it. One person serves every language:
+// it stores one unprefixed URI, and `/it/...` renders the same document with its Italian fields.
+const uri = Astro.locals.path;
+const storedUri = sharedDocumentPath(uri);
+
+const [{ data: person }, { data: site }, homeUriByLocale] = await Promise.all([
+  loadQuery<AuthorPageQResult>({ query: AuthorPageQ, params: { uri: storedUri }, ...getDraftModeProps(Astro) }),
+  loadSite(Astro),
+  readHomeUriByLocale(),
+]);
+
+if (!person) {
+  return new Response(null, { status: 404 });
+}
+
+const page = { ...person, alternates: sharedAlternates(SANITY_PERSON_DOCUMENT_TYPE, storedUri, person.noIndex) };
+
+// `article` too, so publishing one under this byline refreshes the list below.
+cacheResponse(Astro, {
+  ...CACHE_TTL,
+  tags: [...docCacheTags(page), SANITY_ARTICLE_DOCUMENT_TYPE, ...SITE_WIDE_CACHE_TAGS],
+});
+
+const locale = Astro.locals.locale;
+const strings = uiStrings(locale);
+const canonical = absoluteUrl(uri);
+const alternates = buildAlternateLinks({
+  siteUrl: PUBLIC_SITE_URL,
+  locale,
+  uri,
+  noIndex: page.noIndex,
+  alternates: page.alternates,
+});
+const { title, description, image, robots } = page.seoMetadata ?? {};
+const seoProps = seo(site, {
+  robots,
+  title: title ?? page.name,
+  description,
+  image,
+  canonical,
+  lang: locale,
+  alternates,
+});
+
+const profiles = (page.links ?? []).flatMap((link) => safeHref(stegaClean(link.href)) ?? []);
+const articles = page.articles ?? [];
+
+// The blog index in the author's language; without one, the page offers no way back to it rather than a wrong one.
+const blogHref = safeHref(stegaClean(page.blog?.uri)) ?? undefined;
+const blogTitle = page.blog?.title ?? strings.blog.fallbackTitle;
+
+// One identity in every language: each language's profile page names the same person.
+const personId = `${absoluteUrl(storedUri)}#person`;
+
+const pageJsonLd = jsonLdGraph([
+  // ProfilePage, not WebPage: `mainEntity` marks this URL as the identity every article's `author` resolves to.
+  profilePageLd({
+    name: seoProps.title,
+    url: canonical,
+    description: seoProps.description,
+    siteUrl: PUBLIC_SITE_URL,
+    mainEntityId: personId,
+    dateCreated: page._createdAt,
+    dateModified: page._updatedAt,
+    inLanguage: locale,
+  }),
+  personLd({
+    name: page.name ?? undefined,
+    url: canonical,
+    id: personId,
+    siteUrl: PUBLIC_SITE_URL,
+    jobTitle: page.role ?? undefined,
+    description: seoProps.description,
+    image: page.image?._id != null ? getOgImageSrc(page.image) : undefined,
+    sameAs: profiles,
+  }),
+  // The listing as rendered, matching the blog index's treatment of its own list.
+  ...(articles.length > 0
+    ? [
+        itemListLd({
+          pageId: `${canonical}#webpage`,
+          id: `${canonical}#articles`,
+          items: articles.flatMap((article) => {
+            const href = safeHref(stegaClean(article.href));
+
+            return href ? [{ url: absoluteUrl(href), name: stegaClean(article.title) ?? undefined }] : [];
+          }),
+        }),
+      ]
+    : []),
+  // Home > Blog > Author in the author's language; the blog rung's label is that blog index's own `title`.
+  breadcrumbLd([
+    { name: strings.home, url: absoluteUrl(homeUriByLocale.get(locale) ?? "/") },
+    { name: page.blog?.title ?? "", url: blogHref ? absoluteUrl(blogHref) : undefined },
+    { name: page.name ?? "", url: canonical },
+  ]),
+]);
+---
+
+<Web {...seoProps}>
+  <JsonLd data={pageJsonLd} />
+  <SiteShell showHeader={page.showHeader} showFooter={page.showFooter} translations={page.alternates}>
+    <div class="mx-auto flex w-full max-w-(--page-width) flex-col gap-64 px-(--page-gutter) py-48 lg:gap-120 lg:py-96">
+      <LabelColumns labelClass="pb-8 lg:pb-0">
+        {
+          blogHref && (
+            <a
+              slot="label"
+              href={blogHref}
+              class="group/back inline-flex w-fit items-center gap-6 rounded-4 text-eyebrow text-ink-muted transition-colors duration-150 ease-out hover:text-ink motion-reduce:transition-none"
+            >
+              <Icon
+                name="arrow-left"
+                class="size-14 transition-transform duration-150 ease-out motion-safe:group-hover/back:-translate-x-2"
+              />
+              {strings.author.backTo(blogTitle)}
+            </a>
+          )
+        }
+        <AuthorProfile author={page} as="h1" size="page" sizes="100vw lg:280px" />
+      </LabelColumns>
+
+      {
+        articles.length > 0 && (
+          <LabelColumns labelClass="lg:pt-8">
+            <h2 slot="label" class="text-eyebrow text-ink-muted">{strings.author.articles}</h2>
+            <ul class="grid gap-16 lg:grid-cols-2 lg:gap-24">
+              {articles.map((article) => (
+                <li>
+                  <ArticleCard
+                    heading="h3"
+                    href={safeHref(stegaClean(article.href)) ?? blogHref ?? uri}
+                    title={article.title}
+                    date={article.publishedAt ? formatDate(stegaClean(article.publishedAt), locale) : null}
+                    meta={(article.categories ?? []).filter(Boolean).join(" · ")}
+                    image={article.image}
+                  />
+                </li>
+              ))}
+            </ul>
+          </LabelColumns>
+        )
+      }
+    </div>
+  </SiteShell>
+</Web>

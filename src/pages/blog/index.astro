@@ -1,0 +1,106 @@
+---
+import { stegaClean } from "@sanity/client/stega";
+import JsonLd from "~/components/JsonLd.astro";
+import ArticleList from "~/features/blog/ArticleList.astro";
+import { requestedCategorySlugs } from "~/features/blog/category-filter";
+import { isCacheableCategoryView, knownCategorySlugs } from "~/features/blog/category-view";
+import { BlogArticleListQ } from "~/features/blog/queries";
+import FeedLink from "~/features/feed/FeedLink.astro";
+import { feedTitle } from "~/features/feed/title";
+import { buildAlternateLinks } from "~/features/i18n/alternates";
+import { readHomeUriByLocale } from "~/features/i18n/homepage-locales";
+import { uiStrings } from "~/features/i18n/strings";
+import SiteShell from "~/features/site/SiteShell.astro";
+import { blogLd, breadcrumbLd, jsonLdGraph, webPageLd } from "~/features/site/seo/structured-data";
+import Web from "~/layouts/Web.astro";
+import { CACHE_TTL, cacheResponse, docCacheTags, SITE_WIDE_CACHE_TAGS } from "~/lib/cache";
+import { absoluteUrl, PUBLIC_SITE_URL } from "~/lib/env";
+import { SANITY_ARTICLE_CATEGORY_DOCUMENT_TYPE } from "~/sanity/constants";
+import type { BlogArticleListQResult, BlogPageQResult } from "~/sanity/types";
+import { getDraftModeProps } from "../../sanity/lib/draft-mode";
+import { loadQuery } from "../../sanity/lib/load-query";
+import { BlogPageQ } from "../../sanity/queries";
+import { loadSite, seo } from "../../sanity/seo";
+
+// The index of the `/blog/<slug>` prefix route: one `blog` document per language, found by the full stored URI.
+const uri = Astro.locals.path;
+
+const [{ data: page }, { data: list }, { data: site }, homeUriByLocale] = await Promise.all([
+  loadQuery<BlogPageQResult>({ query: BlogPageQ, params: { uri }, ...getDraftModeProps(Astro) }),
+  // Here, not in ArticleList: the cache decision needs its categories before the response starts.
+  loadQuery<BlogArticleListQResult>({
+    query: BlogArticleListQ,
+    params: { categories: requestedCategorySlugs(Astro.url.searchParams) },
+    ...getDraftModeProps(Astro),
+  }),
+  loadSite(Astro),
+  readHomeUriByLocale(),
+]);
+
+if (!page) {
+  return new Response(null, { status: 404 });
+}
+
+// Tagged with `article` and the category type; only known categories are stored, one entry per view.
+const isCacheable = isCacheableCategoryView(Astro.url.searchParams, knownCategorySlugs(list?.categories));
+
+cacheResponse(
+  Astro,
+  isCacheable && {
+    ...CACHE_TTL,
+    tags: [...docCacheTags(page), "article", SANITY_ARTICLE_CATEGORY_DOCUMENT_TYPE, ...SITE_WIDE_CACHE_TAGS],
+  }
+);
+
+const locale = stegaClean(page.language);
+const strings = uiStrings(locale);
+const canonical = absoluteUrl(uri);
+const alternates = buildAlternateLinks({
+  siteUrl: PUBLIC_SITE_URL,
+  locale,
+  uri,
+  noIndex: page.noIndex,
+  alternates: page.alternates,
+});
+const { title, description, image, robots } = page.seoMetadata ?? {};
+const seoProps = seo(site, {
+  robots,
+  title: title ?? page.title,
+  description,
+  image,
+  canonical,
+  lang: locale,
+  alternates,
+});
+
+const pageJsonLd = jsonLdGraph([
+  webPageLd({
+    name: seoProps.title,
+    url: canonical,
+    description: seoProps.description,
+    siteUrl: PUBLIC_SITE_URL,
+    inLanguage: locale,
+  }),
+  blogLd({
+    name: page.heading ?? page.title ?? undefined,
+    url: canonical,
+    description: seoProps.description,
+    siteUrl: PUBLIC_SITE_URL,
+    inLanguage: locale,
+  }),
+  breadcrumbLd([
+    { name: strings.home, url: absoluteUrl(homeUriByLocale.get(locale) ?? "/") },
+    { name: page.title ?? "", url: canonical },
+  ]),
+]);
+---
+
+<Web {...seoProps}>
+  <Fragment slot="head">
+    <FeedLink title={feedTitle(seoProps.siteName, page.title)} locale={locale} />
+  </Fragment>
+  <JsonLd data={pageJsonLd} />
+  <SiteShell showHeader={page.showHeader} showFooter={page.showFooter} translations={page.alternates}>
+    <ArticleList canonical={canonical} blogUri={uri} blog={list} />
+  </SiteShell>
+</Web>

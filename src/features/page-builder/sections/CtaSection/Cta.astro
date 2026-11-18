@@ -1,0 +1,49 @@
+---
+import type { ComponentProps } from "astro/types";
+import Button from "~/components/Button.astro";
+import SectionFrame from "~/features/page-builder/SectionFrame.astro";
+import type { SectionLayoutSettings } from "~/features/page-builder/section-layout";
+import type { LinkFragmentResult } from "~/features/sanity/link/fragment";
+import SanityLinkIcon from "~/features/sanity/link/SanityLinkIcon.astro";
+import { safeHref } from "~/features/sanity/link/safe-href";
+import { cx } from "~/features/style/utils";
+import SanityRichText from "../../../../sanity/rich-text/SanityRichText.astro";
+
+// A full-width band the page sets a call to action on: heading on the left, copy and one button on the right.
+type Props = {
+  headline?: string | null;
+  text?: ComponentProps<typeof SanityRichText>["value"];
+  cta?: LinkFragmentResult | null;
+  settings?: SectionLayoutSettings | null;
+  id?: string;
+  class?: string;
+  [key: `data-${string}`]: string | undefined;
+};
+
+const { headline, text, cta, settings, id, class: className, ...data } = Astro.props;
+const href = safeHref(cta?.href);
+---
+
+<SectionFrame settings={settings} id={id} class={cx('max-w-none bg-surface px-0', className)} {...data}>
+  <div
+    class="mx-auto flex w-full max-w-(--page-width) flex-col gap-24 px-(--page-gutter) py-64 lg:flex-row lg:items-start lg:justify-between lg:gap-48 lg:py-120"
+  >
+    {headline && <h2 class="text-headline-10 text-balance whitespace-pre-line lg:max-w-460">{headline}</h2>}
+    <div class="flex flex-col items-start gap-24 lg:w-460 lg:shrink-0">
+      <SanityRichText animated value={text} class="text-body-10" />
+      {
+        cta && href && (
+          <Button
+            href={href}
+            target={cta.openInNewTab ? '_blank' : undefined}
+            rel={cta.openInNewTab ? 'noopener noreferrer' : undefined}
+            download={cta.canDownload ? '' : undefined}
+          >
+            {cta.text}
+            <SanityLinkIcon link={cta} slot="right-icon" class="size-18" />
+          </Button>
+        )
+      }
+    </div>
+  </div>
+</SectionFrame>

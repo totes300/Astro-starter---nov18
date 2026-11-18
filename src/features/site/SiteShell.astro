@@ -1,0 +1,22 @@
+---
+import type { AlternateResult } from "~/features/i18n/fragment";
+import SiteAnnouncement from "./site-announcement/SiteAnnouncement.astro";
+import SiteFooter from "./site-footer/SiteFooter.astro";
+import SiteHeader from "./site-header/SiteHeader.astro";
+
+type Props = {
+  showHeader?: boolean;
+  showFooter?: boolean;
+  /** The page's `alternates` as queried, which the language switchers link to. */
+  translations?: (AlternateResult | null | undefined)[] | null;
+};
+
+const { showHeader = true, showFooter = true, translations } = Astro.props;
+---
+
+<div class="flex min-h-svh flex-col">
+  <SiteAnnouncement />
+  {showHeader && <SiteHeader translations={translations} />}
+  <main class="flex-1" data-page-out="fade" data-page-in="fade"><slot /></main>
+  {showFooter && <SiteFooter translations={translations} />}
+</div>

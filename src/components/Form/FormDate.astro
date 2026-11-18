@@ -1,0 +1,60 @@
+---
+import Icon from "~/components/Icon/Icon.astro";
+import { cx } from "~/features/style/utils";
+import FormField from "./FormField.astro";
+import { fieldLabel } from "./label";
+import { FIELD_ADORNMENT_CLASS, FIELD_CONTROL_CLASS } from "./styles";
+
+// A native date input. The browser paints its own date mask when the field is empty, so the label stands in
+// for a placeholder until the field has focus or a value, and every field reads the same at rest.
+type Props = {
+  name: string;
+  label: string;
+  id?: string;
+  value?: string;
+  min?: string;
+  max?: string;
+  error?: string;
+  required?: boolean;
+  disabled?: boolean;
+  class?: string;
+};
+
+const { name, label, id = name, value, min, max, error, required, disabled, class: className } = Astro.props;
+
+// The native picker button is stretched over the drawn icon and hidden, so no script has to reach for `showPicker`.
+const PICKER_CLASS =
+  "[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-22 " +
+  "[&::-webkit-calendar-picker-indicator]:size-16 [&::-webkit-calendar-picker-indicator]:cursor-pointer " +
+  "[&::-webkit-calendar-picker-indicator]:opacity-0";
+---
+
+<FormField name={name} label={label} id={id} error={error} required={required} filled={Boolean(value)} class={className}>
+  <span
+    aria-hidden="true"
+    class="pointer-events-none text-body-10 text-ink-muted group-focus-within:invisible group-data-filled:invisible"
+  >
+    {fieldLabel(label, required)}
+  </span>
+
+  <input
+    id={id}
+    name={name}
+    type="date"
+    value={value}
+    min={min}
+    max={max}
+    required={required}
+    disabled={disabled}
+    aria-describedby={`${id}-error`}
+    aria-invalid={error ? 'true' : undefined}
+    data-field-control
+    class={cx(
+      FIELD_CONTROL_CLASS,
+      'absolute inset-0 h-full rounded-full px-22 pr-48 text-transparent group-focus-within:text-ink group-data-filled:text-ink',
+      PICKER_CLASS
+    )}
+  />
+
+  <Icon name="calendar" class={FIELD_ADORNMENT_CLASS} />
+</FormField>

@@ -1,0 +1,58 @@
+---
+import { stegaClean } from '@sanity/client/stega'
+import Web from '~/layouts/Web.astro'
+import { buildAlternateLinks } from '~/features/i18n/alternates'
+import PageSections from '~/features/page-builder/PageSections.astro'
+import { PageSectionsQ } from '~/features/page-builder/queries'
+import SiteShell from '~/features/site/SiteShell.astro'
+import { absoluteUrl, PUBLIC_SITE_URL } from '~/lib/env'
+import { getDraftModeProps } from '../../sanity/lib/draft-mode'
+import { loadQuery } from '../../sanity/lib/load-query'
+import { {{pascalCase documentType}}PageQ } from '../../sanity/queries'
+import { loadSite, seo } from '../../sanity/seo'
+import type { {{pascalCase documentType}}PageQResult, PageSectionsQResult } from '~/sanity/types'
+
+// Prefix route for `{{camelCase documentType}}` documents: /{{kebabCase routePrefix}}/<slug>, prefixed in other languages, found by the full stored URI.
+const uri = Astro.locals.path
+
+const draftModeProps = getDraftModeProps(Astro)
+
+// All three read the same uri and none depends on the others, so they cost one round trip together.
+const [{ data: page }, { data: pageSections }, { data: site }] = await Promise.all([
+  loadQuery<{{pascalCase documentType}}PageQResult>({ query: {{pascalCase documentType}}PageQ, params: { uri }, ...draftModeProps }),
+  loadQuery<PageSectionsQResult>({ query: PageSectionsQ, params: { uri }, ...draftModeProps }),
+  loadSite(Astro),
+])
+
+if (!page) {
+  return new Response(null, { status: 404 })
+}
+
+// The document's own language, never the URL's: it is what the page is written in.
+const locale = stegaClean(page.language)
+const canonical = absoluteUrl(uri)
+const alternates = buildAlternateLinks({
+  siteUrl: PUBLIC_SITE_URL,
+  locale,
+  uri,
+  noIndex: page.noIndex,
+  alternates: page.alternates,
+})
+
+const { title, description, image, robots } = page.seoMetadata ?? {}
+const seoProps = seo(site, {
+  robots,
+  title: title ?? page.title,
+  description,
+  image,
+  canonical,
+  lang: locale,
+  alternates,
+})
+---
+
+<Web {...seoProps}>
+  <SiteShell showHeader={page.showHeader} showFooter={page.showFooter} translations={page.alternates}>
+    <PageSections docId={page._id} pageSections={pageSections} />
+  </SiteShell>
+</Web>

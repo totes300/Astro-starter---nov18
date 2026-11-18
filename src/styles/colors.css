@@ -1,0 +1,51 @@
+@theme {
+  /* Reset default TW colors. */
+  --color-\*: initial;
+
+  --color-unset: unset;
+  --color-initial: initial;
+  --color-inherit: inherit;
+  --color-current: currentColor;
+  --color-transparent: transparent;
+
+  --color-black: #000;
+  --color-white: #fff;
+
+  /* The interface palette on white: three inks for text, and the greys that hold controls. */
+  --color-ink: #111111;
+  --color-ink-hover: #333333;
+  --color-ink-body: #4d4d4d;
+  --color-ink-muted: #6b6b6b;
+  --color-surface: #f5f5f5;
+  --color-hairline: #ebebeb;
+  --color-highlight: #e3e3e3;
+
+  /* A control boundary, at the 3:1 non-text contrast minimum against white. */
+  --color-field-edge: #949494;
+
+  /* Semantic, so deliberately not in the brand ramp below: content picking "danger" would be picking
+     a meaning rather than a colour, and the value is free to change with the design system. */
+  --color-danger: #c4271d;
+
+  /* The keyboard focus ring and any outline that stands in for it. */
+  --color-focus: #111111;
+}
+
+/* The brand ramp: the only tokens content is allowed to paint with, and the palette the Studio offers
+   wherever a document carries a colour (see `sanity/colors.ts`, which lists these by name and is tested
+   against this block). A project replaces the values and the picker follows.
+
+   `static` because the only reader may be content: rich text stores a token NAME and the renderer
+   resolves it to `var(--color-brand-*)` at runtime (`src/sanity/rich-text/components/token-color.ts`),
+   which Tailwind cannot see. Without it the ramp is tree-shaken out of the stylesheet the moment no
+   component happens to use a `*-brand-*` utility, and every colour an editor picked resolves to nothing.
+
+   Kept apart from `--color-black`/`--color-white` above, which are the raw utilities the design system
+   itself uses: a brand token is content-facing and may be redefined per project, those two never are. */
+@theme static {
+  --color-brand-black: #000;
+  --color-brand-white: #fff;
+  --color-brand-off-white: #e3e3e3;
+  --color-brand-grey: #6b6b6b;
+  --color-brand-accent: #ff9100;
+}

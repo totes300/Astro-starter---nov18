@@ -1,0 +1,26 @@
+---
+import { cx } from "~/features/style/utils";
+
+// The page's two-column grid on the content width: a 258 label column beside the content. The `label` slot is the
+// wall label (an eyebrow, a meta line, a back link), stacked above the content below `lg`.
+type Props = {
+  /** Pins the label below the top of the viewport while its section scrolls past. */
+  sticky?: boolean;
+  as?: "div" | "header";
+  class?: string;
+  labelClass?: string;
+};
+
+const { sticky = false, as: Tag = "div", class: className, labelClass } = Astro.props;
+
+// Rendered first: a slotted expression that came out empty still counts as a slot, and an empty label folds away.
+const label = Astro.slots.has("label") ? await Astro.slots.render("label") : "";
+const hasLabel = label.trim().length > 0;
+---
+
+<Tag class={cx('flex flex-col gap-16 lg:flex-row lg:items-start lg:gap-24', className)}>
+  <div class={cx('lg:w-258 lg:shrink-0', !hasLabel && 'hidden lg:block', sticky && 'lg:sticky lg:top-24', labelClass)}>
+    <Fragment set:html={label} />
+  </div>
+  <div class="min-w-0 flex-1"><slot /></div>
+</Tag>

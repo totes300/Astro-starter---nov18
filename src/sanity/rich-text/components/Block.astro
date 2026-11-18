@@ -1,0 +1,44 @@
+---
+import type { BlockProps } from "astro-portabletext/types";
+import { getIndentStyle } from "./indent-style";
+
+// Block renderer for rich text: every text block carries `data-text` (the AnimatedText split target) and the
+// indentField mark applies at block level. An h2 is a section title, one step smaller inside prose.
+type Props = BlockProps;
+
+const { node } = Astro.props;
+const style = node.style ?? "normal";
+const indentStyle = getIndentStyle(node.markDefs);
+---
+
+{
+  style === "h2" ? (
+    <h2
+      class="pb-6 text-headline-10 text-balance text-ink group-data-prose/rich:mt-30 group-data-prose/rich:pb-0 group-data-prose/rich:text-title group-data-prose/rich:first:mt-0"
+      data-text
+      style={indentStyle}
+    >
+      <slot />
+    </h2>
+  ) : style === "h3" ? (
+    <h3
+      class="mt-12 max-w-620 text-body-20 leading-subhead font-medium text-balance text-ink group-data-prose/rich:mt-14 first:mt-0"
+      data-text
+      style={indentStyle}
+    >
+      <slot />
+    </h3>
+  ) : style === "h4" ? (
+    <h3 class="text-eyebrow text-ink-muted" data-text style={indentStyle}>
+      <slot />
+    </h3>
+  ) : style === "caption" ? (
+    <div class="max-w-620 font-mono no-ligatures text-caption text-ink-muted empty:hidden" data-text style={indentStyle}>
+      <slot />
+    </div>
+  ) : (
+    <div class="max-w-620 text-pretty text-ink-body empty:hidden" data-text style={indentStyle}>
+      <slot />
+    </div>
+  )
+}

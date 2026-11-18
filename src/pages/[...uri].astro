@@ -1,0 +1,91 @@
+---
+import { stegaClean } from "@sanity/client/stega";
+import JsonLd from "~/components/JsonLd.astro";
+import { buildAlternateLinks } from "~/features/i18n/alternates";
+import { readHomeUriByLocale } from "~/features/i18n/homepage-locales";
+import { uiStrings } from "~/features/i18n/strings";
+import LegalPage from "~/features/legal/LegalPage.astro";
+import PageSections from "~/features/page-builder/PageSections.astro";
+import { PageSectionsQ } from "~/features/page-builder/queries";
+import SiteShell from "~/features/site/SiteShell.astro";
+import { breadcrumbLd, jsonLdGraph, webPageLd } from "~/features/site/seo/structured-data";
+import Web from "~/layouts/Web.astro";
+import { CACHE_TTL, cacheResponse, docCacheTags, SITE_WIDE_CACHE_TAGS } from "~/lib/cache";
+import { absoluteUrl, PUBLIC_SITE_URL } from "~/lib/env";
+import { isHomeUri } from "~/sanity/i18n";
+import type { PageQResult, PageSectionsQResult } from "~/sanity/types";
+import { getDraftModeProps } from "../sanity/lib/draft-mode";
+import { loadQuery } from "../sanity/lib/load-query";
+import { PageQ } from "../sanity/queries";
+import { loadSite, seo } from "../sanity/seo";
+
+// The pages model: every `page` and `legalPage` with a `uri`, homepages included. Rendered on demand for draft mode.
+// Looked up by `locals.path`, the full public path: the locale rewrite strips the prefix from `Astro.params`.
+const uri = Astro.locals.path;
+
+const draftModeProps = getDraftModeProps(Astro);
+
+// None depends on the others, so they cost one round trip together.
+const [{ data: page }, { data: pageSections }, { data: site }, homeUriByLocale] = await Promise.all([
+  loadQuery<PageQResult>({ query: PageQ, params: { uri }, ...draftModeProps }),
+  loadQuery<PageSectionsQResult>({ query: PageSectionsQ, params: { uri }, ...draftModeProps }),
+  loadSite(Astro),
+  readHomeUriByLocale(),
+]);
+
+if (!page) {
+  return new Response(null, { status: 404 });
+}
+
+// Tagged with the page's identity plus 'site', so publishing the Site singleton busts every page.
+cacheResponse(Astro, { ...CACHE_TTL, tags: [...docCacheTags(page), ...SITE_WIDE_CACHE_TAGS] });
+
+// The document's own language, never the URL's: it is what the page is written in.
+const locale = stegaClean(page.language);
+const strings = uiStrings(locale);
+const canonical = absoluteUrl(uri);
+const alternates = buildAlternateLinks({
+  siteUrl: PUBLIC_SITE_URL,
+  locale,
+  uri,
+  noIndex: page.noIndex,
+  alternates: page.alternates,
+});
+const { title, description, image, robots } = page.seoMetadata ?? {};
+const isHome = isHomeUri(uri);
+const seoProps = seo(site, {
+  robots,
+  title: isHome ? undefined : (title ?? page.title),
+  description: isHome ? undefined : description,
+  image: isHome ? undefined : image,
+  canonical,
+  lang: locale,
+  alternates,
+});
+
+// Name/description mirror the resolution in `seoProps` so the node matches the <title>. JsonLd stega-cleans the graph.
+const pageJsonLd = jsonLdGraph([
+  webPageLd({
+    name: seoProps.title,
+    url: canonical,
+    description: seoProps.description,
+    siteUrl: PUBLIC_SITE_URL,
+    inLanguage: locale,
+  }),
+  ...(isHome
+    ? []
+    : [
+        breadcrumbLd([
+          { name: strings.home, url: absoluteUrl(homeUriByLocale.get(locale) ?? "/") },
+          { name: page.title ?? "", url: canonical },
+        ]),
+      ]),
+]);
+---
+
+<Web {...seoProps}>
+  <JsonLd data={pageJsonLd} />
+  <SiteShell showHeader={page.showHeader} showFooter={page.showFooter} translations={page.alternates}>
+    {page._type === 'legalPage' ? <LegalPage page={page} /> : <PageSections docId={page._id} pageSections={pageSections} />}
+  </SiteShell>
+</Web>

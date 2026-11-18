@@ -1,0 +1,110 @@
+---
+import Icon from "~/components/Icon/Icon.astro";
+import { fallbackLang } from "~/features/i18n/content-lang";
+import type { AlternateResult } from "~/features/i18n/fragment";
+import { readHomeUriByLocale } from "~/features/i18n/homepage-locales";
+import { buildLanguageLinks } from "~/features/i18n/language-links";
+import { uiStrings } from "~/features/i18n/strings";
+import type { LinkFragmentResult } from "~/features/sanity/link/fragment";
+import SanityLink from "~/features/sanity/link/SanityLink.astro";
+import { safeHref } from "~/features/sanity/link/safe-href";
+import LanguageSwitcher from "~/features/site/LanguageSwitcher/LanguageSwitcher.astro";
+import { languageMenu } from "~/features/site/LanguageSwitcher/language-menu";
+import SiteNavLink from "~/features/site/SiteNavLink.astro";
+import type { SiteFooterQResult } from "~/sanity/types";
+import { getDraftModeProps } from "../../../sanity/lib/draft-mode";
+import { loadQuery } from "../../../sanity/lib/load-query";
+import { SiteFooterQ } from "./query";
+
+type Props = {
+  translations?: (AlternateResult | null | undefined)[] | null;
+};
+
+const { translations } = Astro.props;
+
+const [{ data: siteFooter }, homeUriByLocale] = await Promise.all([
+  loadQuery<SiteFooterQResult>({ query: SiteFooterQ, ...getDraftModeProps(Astro) }),
+  readHomeUriByLocale(),
+]);
+
+const links = (siteFooter?.footer?.links ?? []).filter((link) => safeHref(link.href));
+const legalLinks = (siteFooter?.footer?.legalLinks ?? []).filter((link) => safeHref(link.href));
+const contacts = (siteFooter?.contacts ?? []).flatMap(({ key, name, link }) =>
+  link && safeHref(link.href) ? [{ key, name, link }] : []
+);
+// The switcher's own rows: below two safe ones there is no switcher, and no footer kept up just for it.
+const menu = languageMenu(
+  buildLanguageLinks({ locale: Astro.locals.locale, uri: Astro.locals.path, alternates: translations, homeUriByLocale })
+);
+const strings = uiStrings(Astro.locals.locale);
+const contentLang = fallbackLang(siteFooter?.language, Astro.locals.locale);
+const year = new Date().getFullYear();
+const tagline = siteFooter?.footer?.tagline;
+
+// Site and Legal are page links, Contact the site's own addresses; an empty column is left out.
+type FooterColumn = { key: string; title: string } & (
+  | { kind: "nav"; links: (LinkFragmentResult & { key: string })[] }
+  | { kind: "contact"; contacts: typeof contacts }
+);
+
+const allColumns: FooterColumn[] = [
+  { key: "site", title: strings.footer.site, kind: "nav", links },
+  { key: "legal", title: strings.footer.legal, kind: "nav", links: legalLinks },
+  { key: "contact", title: strings.footer.contact, kind: "contact", contacts },
+];
+const columns = allColumns.filter((column) => (column.kind === "nav" ? column.links.length > 0 : column.contacts.length > 0));
+---
+
+{
+  (columns.length > 0 || menu) && (
+    <footer data-page-out="fade" data-page-in="fade" class="bg-surface">
+      <div class="mx-auto flex max-w-(--page-width) flex-col gap-40 px-(--page-gutter) pt-64 pb-24 lg:gap-120 lg:pt-96 lg:pb-32">
+        <div class="flex flex-col gap-40 lg:flex-row lg:items-start lg:justify-between lg:gap-48">
+          <div class="flex flex-col gap-20 lg:gap-24">
+            <Icon name="logo-mark" class="size-36 text-ink lg:size-40" />
+            {tagline && (
+              <p class="max-w-320 text-body-10 text-ink-body" lang={contentLang}>
+                {tagline}
+              </p>
+            )}
+          </div>
+
+          {columns.length > 0 && (
+            <nav aria-label={strings.landmark.footer} class="grid grid-cols-2 gap-x-16 gap-y-40 lg:flex lg:gap-48">
+              {columns.map((column) => (
+                <div class="flex flex-col gap-16 lg:w-160">
+                  <h2 class="text-eyebrow text-ink-muted">{column.title}</h2>
+                  <ul class="flex flex-col gap-8" lang={contentLang}>
+                    {column.kind === 'nav'
+                      ? column.links.map((link, i) => (
+                          <li>
+                            <SiteNavLink link={link} animationDelay={i * 0.05} viewport={{ margin: '0px' }} />
+                          </li>
+                        ))
+                      : column.contacts.map((contact) => (
+                          <li>
+                            <SanityLink
+                              link={contact.link}
+                              class="text-cta leading-normal font-normal tracking-normal text-ink decoration-1 underline-offset-4 hover:underline"
+                            >
+                              {contact.name ?? contact.link.text}
+                            </SanityLink>
+                          </li>
+                        ))}
+                  </ul>
+                </div>
+              ))}
+            </nav>
+          )}
+        </div>
+
+        <div class="flex items-center justify-between gap-16">
+          <p class="text-eyebrow font-normal text-ink-muted" lang={contentLang}>
+            © {year} {siteFooter?.name}
+          </p>
+          {menu && <LanguageSwitcher id="footer-language" menu={menu} tone="on-surface" />}
+        </div>
+      </div>
+    </footer>
+  )
+}

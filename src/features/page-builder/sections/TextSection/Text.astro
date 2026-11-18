@@ -1,0 +1,30 @@
+---
+import type { ComponentProps } from "astro/types";
+import LabelColumns from "~/components/LabelColumns.astro";
+import SectionFrame from "~/features/page-builder/SectionFrame.astro";
+import type { SectionLayoutSettings } from "~/features/page-builder/section-layout";
+import { splitEyebrow } from "~/features/rich-text/fragment";
+import SanityRichText from "../../../../sanity/rich-text/SanityRichText.astro";
+
+// A column of rich text the page reads straight through, under an optional heading, its eyebrow pinned beside it.
+type Props = {
+  headline?: string | null;
+  text?: ComponentProps<typeof SanityRichText>["value"];
+  settings?: SectionLayoutSettings | null;
+  id?: string;
+  class?: string;
+  [key: `data-${string}`]: string | undefined;
+};
+
+const { headline, text, settings, id, class: className, ...data } = Astro.props;
+
+const { eyebrow, body } = splitEyebrow(text);
+---
+
+<SectionFrame settings={settings} id={id} class={className} {...data}>
+  <LabelColumns sticky labelClass="lg:pt-16">
+    {eyebrow && <SanityRichText slot="label" animated value={eyebrow} class="text-eyebrow" />}
+    {headline && <h1 class="mb-24 text-balance whitespace-pre-line text-headline-10">{headline}</h1>}
+    <SanityRichText animated value={body} class="text-body-10" />
+  </LabelColumns>
+</SectionFrame>

@@ -1,0 +1,84 @@
+---
+import { cx } from "~/features/style/utils";
+
+// Button with its variants flattened to a class map.
+// Renders an <a> when `href` is set, else a <button>.
+type Props = {
+  href?: string;
+  target?: string;
+  rel?: string;
+  download?: string | boolean;
+  type?: "button" | "submit" | "reset";
+  disabled?: boolean;
+  variant?: "primary" | "pill" | "underline";
+  class?: string;
+  /** Set it when the label the reader hears is not the label on screen, as on a multi-state submit button. */
+  "aria-label"?: string;
+  "aria-expanded"?: "true" | "false";
+  "aria-controls"?: string;
+  /** Behaviour hooks a caller needs on the rendered element itself, e.g. the submit button's state. */
+  [key: `data-${string}`]: string | undefined;
+};
+
+const {
+  href,
+  target,
+  rel,
+  download,
+  type = "button",
+  disabled,
+  variant = "primary",
+  class: className,
+  "aria-label": ariaLabel,
+  "aria-expanded": ariaExpanded,
+  "aria-controls": ariaControls,
+  ...data
+} = Astro.props;
+
+const base =
+  "group/button inline-flex w-fit min-w-0 shrink-0 cursor-pointer items-center justify-center whitespace-nowrap text-cta " +
+  "transition duration-150 ease-out active:scale-96 motion-reduce:transition-none motion-reduce:active:scale-100 " +
+  "disabled:pointer-events-none disabled:opacity-50";
+
+const variants = {
+  // The icon side is 4 narrower: a glyph's own side bearing already reads as padding.
+  primary: "h-44 gap-8 rounded-full bg-ink pr-18 pl-22 text-white hover:bg-ink-hover",
+  // The quiet pill: a control on white (the menu trigger, a dialog close) rather than a call to action.
+  pill: "h-36 gap-8 rounded-full bg-surface pr-14 pl-16 text-eyebrow text-ink hover:bg-hairline",
+  underline: "text-ink underline underline-offset-4",
+};
+
+// Only the call to action nudges its arrow; a quiet pill stays put.
+const rightIconClass = cx(
+  "inline-flex transition-transform duration-150 ease-out",
+  variant === "primary" && "motion-safe:group-hover/button:translate-x-2"
+);
+const hasRightIcon = Astro.slots.has("right-icon");
+
+// tailwind-merge so caller classes reliably beat the defaults (e.g. a custom height or color).
+const classes = cx(base, variants[variant], className);
+---
+
+{
+  href ? (
+    <a href={href} target={target} rel={rel} download={download} class={classes} aria-label={ariaLabel} {...data}>
+      <slot name="left-icon" />
+      <slot />
+      {hasRightIcon && <span class={rightIconClass}><slot name="right-icon" /></span>}
+    </a>
+  ) : (
+    <button
+      type={type}
+      disabled={disabled}
+      class={classes}
+      aria-label={ariaLabel}
+      aria-expanded={ariaExpanded}
+      aria-controls={ariaControls}
+      {...data}
+    >
+      <slot name="left-icon" />
+      <slot />
+      {hasRightIcon && <span class={rightIconClass}><slot name="right-icon" /></span>}
+    </button>
+  )
+}

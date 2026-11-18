@@ -1,0 +1,22 @@
+---
+import type { ListItemProps } from "astro-portabletext/types";
+import { getIndentStyle } from "./indent-style";
+
+type Props = ListItemProps;
+
+const { node, index } = Astro.props;
+const indentStyle = getIndentStyle(node.markDefs);
+---
+
+<li class="flex items-start">
+  {
+    node.listItem === "number" ? (
+      <span aria-hidden="true" class="w-20 shrink-0 text-ink-muted tabular-nums lg:w-24">{index + 1}.</span>
+    ) : (
+      <span aria-hidden="true" class="w-20 shrink-0 text-ink-muted lg:w-24">•</span>
+    )
+  }
+  <div class="min-w-0 flex-1" data-text style={indentStyle}>
+    <slot />
+  </div>
+</li>

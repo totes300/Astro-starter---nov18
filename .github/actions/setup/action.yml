@@ -1,0 +1,79 @@
+# The steps every job shares: Node from .nvmrc, the npm cache, npm ci, and the .env the build, the tests and the
+# scripts read (the Cloudflare build takes the Worker's environment from .env, never from the shell).
+name: Set up Node and the environment
+description: Installs dependencies and writes .env from the values a job passes in
+
+inputs:
+  site-origin:
+    description: PUBLIC_SITE_URL in .env
+    required: false
+    default: ""
+  sanity-project-id:
+    required: false
+    default: ""
+  sanity-dataset:
+    required: false
+    default: ""
+  turnstile-site-key:
+    description: The Turnstile widget's site key; Cloudflare's always-pass test key when a job renders no form anyone submits
+    required: false
+    default: "1x00000000000000000000AA"
+  sanity-view-token:
+    required: false
+    default: ""
+  sanity-edit-token:
+    description: Required by the build's secret check; nothing in CI writes to Sanity
+    required: false
+    default: ""
+  umami-website-id:
+    description: The Umami website id; empty builds the site without the tracker
+    required: false
+    default: ""
+  studio-base-path:
+    description: The Studio's public path; empty keeps the default, /studio
+    required: false
+    default: ""
+  basic-auth-username:
+    description: Only while the site is locked behind CMS Basic Auth
+    required: false
+    default: ""
+  basic-auth-password:
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version-file: .nvmrc
+        cache: npm
+    - run: npm ci
+      shell: bash
+    - name: Write .env
+      shell: bash
+      env:
+        SITE_ORIGIN: ${{ inputs.site-origin }}
+        PUBLIC_SANITY_PROJECT_ID: ${{ inputs.sanity-project-id }}
+        PUBLIC_SANITY_DATASET: ${{ inputs.sanity-dataset }}
+        PUBLIC_TURNSTILE_SITE_KEY: ${{ inputs.turnstile-site-key }}
+        PUBLIC_UMAMI_WEBSITE_ID: ${{ inputs.umami-website-id }}
+        PUBLIC_SANITY_STUDIO_BASE_PATH: ${{ inputs.studio-base-path }}
+        SANITY_API_VIEW_TOKEN: ${{ inputs.sanity-view-token }}
+        SANITY_API_EDIT_TOKEN: ${{ inputs.sanity-edit-token }}
+        BASIC_AUTH_USERNAME: ${{ inputs.basic-auth-username }}
+        BASIC_AUTH_PASSWORD: ${{ inputs.basic-auth-password }}
+      run: |
+        umask 077
+        {
+          echo "PUBLIC_SITE_URL=$SITE_ORIGIN"
+          echo "PUBLIC_SANITY_PROJECT_ID=$PUBLIC_SANITY_PROJECT_ID"
+          echo "PUBLIC_SANITY_DATASET=$PUBLIC_SANITY_DATASET"
+          echo "PUBLIC_TURNSTILE_SITE_KEY=$PUBLIC_TURNSTILE_SITE_KEY"
+          echo "SANITY_API_VIEW_TOKEN=$SANITY_API_VIEW_TOKEN"
+          echo "SANITY_API_EDIT_TOKEN=$SANITY_API_EDIT_TOKEN"
+          echo "BASIC_AUTH_USERNAME=$BASIC_AUTH_USERNAME"
+          echo "BASIC_AUTH_PASSWORD=$BASIC_AUTH_PASSWORD"
+          if [ -n "$PUBLIC_UMAMI_WEBSITE_ID" ]; then echo "PUBLIC_UMAMI_WEBSITE_ID=$PUBLIC_UMAMI_WEBSITE_ID"; fi
+          if [ -n "$PUBLIC_SANITY_STUDIO_BASE_PATH" ]; then echo "PUBLIC_SANITY_STUDIO_BASE_PATH=$PUBLIC_SANITY_STUDIO_BASE_PATH"; fi
+        } > .env

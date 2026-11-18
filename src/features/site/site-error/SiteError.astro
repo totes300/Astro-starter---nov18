@@ -1,0 +1,46 @@
+---
+import Button from "~/components/Button.astro";
+import LabelColumns from "~/components/LabelColumns.astro";
+import { fallbackLang } from "~/features/i18n/content-lang";
+import SanityLinkIcon from "~/features/sanity/link/SanityLinkIcon.astro";
+import { safeHref } from "~/features/sanity/link/safe-href";
+import SiteShell from "~/features/site/SiteShell.astro";
+import type { SiteErrorQResult } from "~/sanity/types";
+import { getDraftModeProps } from "../../../sanity/lib/draft-mode";
+import { loadQuery } from "../../../sanity/lib/load-query";
+import SanityRichText from "../../../sanity/rich-text/SanityRichText.astro";
+import { SiteErrorQ } from "./query";
+
+const { data: site } = await loadQuery<SiteErrorQResult>({ query: SiteErrorQ, ...getDraftModeProps(Astro) });
+
+const { text, link, showHeader, showFooter } = site?.notFound ?? {};
+const href = safeHref(link?.href);
+const contentLang = fallbackLang(site?.language, Astro.locals.locale);
+---
+
+<SiteShell showHeader={showHeader ?? true} showFooter={showFooter ?? true}>
+  <div class="mx-auto flex min-h-svh w-full max-w-(--page-width) px-(--page-gutter) pt-64 pb-64 lg:pt-160">
+    <LabelColumns class="w-full">
+      <div class="flex flex-col items-start gap-32 lg:gap-40" lang={contentLang}>
+        <SanityRichText
+          animated
+          viewport={false}
+          value={text}
+          class="gap-12 text-body-20 lg:gap-16 [&_.font-mono]:pt-8"
+        />
+        {
+          link && href && (
+            <Button
+              href={href}
+              target={link.openInNewTab ? '_blank' : undefined}
+              rel={link.openInNewTab ? 'noopener noreferrer' : undefined}
+            >
+              {link.text}
+              <SanityLinkIcon link={link} slot="right-icon" class="size-18" />
+            </Button>
+          )
+        }
+      </div>
+    </LabelColumns>
+  </div>
+</SiteShell>

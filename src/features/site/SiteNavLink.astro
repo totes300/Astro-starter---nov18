@@ -1,0 +1,57 @@
+---
+import AnimatedText from "~/components/AnimatedText/AnimatedText.astro";
+import Icon from "~/components/Icon/Icon.astro";
+import type { LinkFragmentResult } from "~/features/sanity/link/fragment";
+import SanityLink from "~/features/sanity/link/SanityLink.astro";
+import { isCurrentPath, isWithinPath } from "~/features/site/is-current-path";
+import { cx } from "~/features/style/utils";
+
+// Shared header, footer and menu link with active-page styling; only the footer's reveals its text.
+type Props = {
+  link: LinkFragmentResult;
+  look?: "segmented" | "plain" | "row";
+  animationDelay?: number;
+  viewport?: false | { margin?: string };
+  class?: string;
+};
+
+const { link, look = "plain", animationDelay, viewport, class: className } = Astro.props;
+
+// The header's section links stay current on the pages under them; the footer names exact pages.
+const isActive = look === "plain" ? isCurrentPath(Astro.locals.path, link.href) : isWithinPath(Astro.locals.path, link.href);
+
+const looks = {
+  // A header track item. Its pre-upgrade pill is on `::before`: the link's own transition would fade a fill out.
+  segmented:
+    "relative flex h-32 items-center rounded-full px-14 text-eyebrow leading-none text-ink-body before:absolute before:inset-0 before:-z-1 before:rounded-full hover:text-ink aria-[current=page]:text-white aria-[current=page]:before:bg-ink group-data-ready/track:before:hidden",
+  plain: "group/link text-cta leading-normal font-normal tracking-normal text-ink",
+  // A row of the mobile menu: the current page in ink, the rest muted, an arrow saying where the link goes.
+  row: "group/row flex h-52 items-center justify-between text-body-20 font-medium tracking-tight text-ink-muted hover:text-ink active:text-ink-muted aria-[current=page]:text-ink",
+};
+
+const classes = cx("transition-colors duration-150 ease-out motion-reduce:transition-none", looks[look], className);
+---
+
+{
+  look === 'plain' ? (
+    <SanityLink link={link} aria-current={isActive ? 'page' : undefined} class={classes}>
+      <AnimatedText
+        animationDelay={animationDelay}
+        viewport={viewport}
+        class="decoration-1 underline-offset-4 group-hover/link:underline"
+      >
+        {link.text}
+      </AnimatedText>
+    </SanityLink>
+  ) : (
+    <SanityLink link={link} aria-current={isActive ? 'page' : undefined} class={classes}>
+      {link.text}
+      {look === 'row' && (
+        <Icon
+          name={link.openInNewTab ? 'arrow-up-right' : 'arrow-right'}
+          class="size-18 transition-transform duration-150 ease-out motion-safe:group-hover/row:translate-x-4"
+        />
+      )}
+    </SanityLink>
+  )
+}

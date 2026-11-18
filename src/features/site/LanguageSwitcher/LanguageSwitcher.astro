@@ -1,0 +1,86 @@
+---
+import Icon, { type IconName } from "~/components/Icon/Icon.astro";
+import { uiStrings } from "~/features/i18n/strings";
+import { cx } from "~/features/style/utils";
+import type { LanguageMenu } from "./language-menu";
+
+// The current language, opening a native popover of all of them; it works before the element upgrades.
+type Props = {
+  /** From `languageMenu()`, which the host also decides on, so it never shows a switcher with one row. */
+  menu: LanguageMenu;
+  /** The popover's id and anchor name, so unique on the page. */
+  id: string;
+  class?: string;
+  /** The ground the trigger sits on: a white pill on a surface band, a grey one on white. */
+  tone?: "on-surface" | "on-white";
+};
+
+const { menu, id, class: className, tone = "on-white" } = Astro.props;
+
+const anchor = `--${id}`;
+const label = uiStrings(Astro.locals.locale).languageNav;
+
+const TRIGGER_TONE = {
+  "on-surface": "bg-white hover:shadow-lift group-has-[:popover-open]/language:shadow-lift",
+  "on-white": "bg-surface hover:bg-hairline group-has-[:popover-open]/language:bg-hairline",
+};
+
+// A round flag where the icon set has one for the language; otherwise the name stands alone.
+const FLAGS: Partial<Record<string, IconName>> = { en: "flag-en", it: "flag-it" };
+---
+
+<language-switcher class="group/language contents">
+  <nav aria-label={label} class={className}>
+    <button
+      type="button"
+      popovertarget={id}
+      style={`anchor-name: ${anchor}`}
+      class={cx(
+        'group/trigger flex h-32 cursor-pointer items-center gap-6 rounded-full pr-12 pl-14 text-eyebrow leading-none text-ink',
+        'transition duration-150 ease-out active:scale-96 motion-reduce:transition-none',
+        TRIGGER_TONE[tone]
+      )}
+    >
+      <span class="sr-only">{label}, </span>
+      {menu.current.title}
+      <Icon
+        name="chevron-down"
+        class="size-14 text-ink-muted transition duration-200 ease-out group-hover/trigger:text-ink group-has-[:popover-open]/language:rotate-180 group-has-[:popover-open]/language:text-ink motion-reduce:transition-none"
+      />
+    </button>
+
+    <div
+      id={id}
+      popover
+      style={`position-anchor: ${anchor}`}
+      class="m-auto mb-8 w-200 translate-y-4 rounded-14 border border-transparent bg-white p-6 text-ink opacity-0 shadow-float transition transition-discrete duration-150 ease-in position-area-top-span-left position-try-flip-inline open:translate-y-0 open:opacity-100 supports-[position-area:top]:mx-0 supports-[position-area:top]:mt-0 motion-reduce:transition-none"
+    >
+      <ul class="flex flex-col gap-2">
+        {menu.links.map((link) => {
+          const flag = FLAGS[link.locale];
+
+          return (
+            <li>
+              <a
+                href={link.href}
+                hreflang={link.locale}
+                lang={link.locale}
+                data-locale={link.locale}
+                aria-current={link.isCurrent ? 'true' : undefined}
+                class="flex h-36 items-center gap-10 rounded-8 px-10 text-eyebrow leading-none text-ink outline-offset-0 transition-colors duration-150 ease-out hover:bg-surface focus-visible:bg-surface motion-reduce:transition-none"
+              >
+                {flag && <Icon name={flag} class="size-16" />}
+                {link.title}
+                {link.isCurrent && <Icon name="check" class="ml-auto size-16" />}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  </nav>
+</language-switcher>
+
+<script>
+  import './LanguageSwitcherElement'
+</script>

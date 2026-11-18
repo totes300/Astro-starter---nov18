@@ -1,0 +1,92 @@
+---
+import Icon from "~/components/Icon/Icon.astro";
+import Marquee from "~/components/Marquee/Marquee.astro";
+import { fallbackLang } from "~/features/i18n/content-lang";
+import { uiStrings } from "~/features/i18n/strings";
+import { safeHref } from "~/features/sanity/link/safe-href";
+import { cx } from "~/features/style/utils";
+import type { SiteAnnouncementQResult } from "~/sanity/types";
+import { getDraftModeProps } from "../../../sanity/lib/draft-mode";
+import { loadQuery } from "../../../sanity/lib/load-query";
+import { ANNOUNCEMENT_COOKIE_NAME } from "./dismissal";
+import { SiteAnnouncementQ } from "./query";
+
+// The bar above the header in the flow, so a sticky header pins once it has cleared and the two never overlap.
+// Always server-rendered when the CMS switch is on; the inline guard below reads the dismissal cookie pre-paint.
+const { data: site } = await loadQuery<SiteAnnouncementQResult>({
+  query: SiteAnnouncementQ,
+  ...getDraftModeProps(Astro),
+});
+
+const announcement = site?.announcement;
+const text = announcement?.enabled ? announcement.text : undefined;
+const link = announcement?.link;
+const href = safeHref(link?.href);
+const isDark = announcement?.theme !== "light";
+const contentLang = fallbackLang(site?.language, Astro.locals.locale);
+---
+
+{
+  text && (
+    <Fragment>
+      <site-announcement
+        class={cx('relative flex h-36 items-center overflow-hidden', isDark ? 'bg-ink text-white' : 'bg-surface text-ink-body')}
+      >
+        <Marquee
+          gap={40}
+          reserve={40}
+          class="min-w-0 flex-1 data-overflow:mask-r-from-transparent data-overflow:mask-r-from-40 data-overflow:mask-r-to-black data-overflow:mask-r-to-80 data-overflow:mask-l-from-transparent data-overflow:mask-l-from-40 data-overflow:mask-l-to-black data-overflow:mask-l-to-80"
+        >
+          <span class="flex items-center gap-8 text-eyebrow leading-none font-normal" lang={contentLang}>
+            <span>{text}</span>
+
+            {link && href && (
+              <a
+                href={href}
+                target={link.openInNewTab ? '_blank' : undefined}
+                rel={link.openInNewTab ? 'noopener noreferrer' : undefined}
+                class={cx(
+                  'underline decoration-1 underline-offset-3 transition-colors duration-150 ease-out motion-reduce:transition-none',
+                  isDark ? 'text-white hover:text-white/70' : 'text-ink hover:text-ink-muted'
+                )}
+              >
+                {link.text}
+              </a>
+            )}
+          </span>
+        </Marquee>
+
+        <button
+          type="button"
+          data-announcement-close
+          aria-label={uiStrings(Astro.locals.locale).control.dismissAnnouncement}
+          class="group/close absolute inset-y-0 right-0 flex w-40 touch-manipulation items-center justify-end pr-8"
+        >
+          <span
+            class={cx(
+              'flex size-24 items-center justify-center rounded-full transition duration-150 ease-out group-active/close:scale-96 motion-reduce:transition-none',
+              isDark ? 'bg-white/15 text-white group-hover/close:bg-white/25' : 'bg-white text-ink-muted group-hover/close:text-ink'
+            )}
+          >
+            <Icon name="close" class="size-14" />
+          </span>
+        </button>
+      </site-announcement>
+
+      <script is:inline define:vars={{ cookieName: ANNOUNCEMENT_COOKIE_NAME }}>
+        {
+          const bar = document.currentScript?.previousElementSibling
+          const dismissed = document.cookie.split('; ').some((cookie) => cookie.startsWith(`${cookieName}=`))
+
+          if (bar?.matches('site-announcement') && dismissed) {
+            bar.remove()
+          }
+        }
+      </script>
+    </Fragment>
+  )
+}
+
+<script>
+  import './SiteAnnouncementElement'
+</script>

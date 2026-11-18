@@ -1,0 +1,71 @@
+---
+import Icon from "~/components/Icon/Icon.astro";
+import { localizedBlocks } from "~/features/rich-text/fragment";
+import SanityLink from "~/features/sanity/link/SanityLink.astro";
+import { hasImage } from "~/features/sanity/media/fragment";
+import { cx } from "~/features/style/utils";
+import type { AuthorPageQResult } from "~/sanity/types";
+import SanityImage from "../../../sanity/media/SanityImage.astro";
+import SanityRichText from "../../../sanity/rich-text/SanityRichText.astro";
+import { PORTRAIT_ASPECT_RATIO } from "./constants";
+
+// One author, as both the panel and their own page render them; only the wrapper, the scale and the heading level differ.
+type Props = {
+  author: NonNullable<AuthorPageQResult>;
+  /** `h1` on the author's own page; `h2` in the panel, where the article underneath already owns the h1. */
+  as?: "h1" | "h2";
+  headingId?: string;
+  /** `page` sets the portrait and name at the page's own scale. */
+  size?: "panel" | "page";
+  sizes?: string;
+};
+
+const { author, as: Heading = "h2", headingId, size = "panel", sizes = "100vw md:200px" } = Astro.props;
+
+const links = (author.links ?? []).filter((link) => Boolean(link.href));
+const isPage = size === "page";
+
+// The panel's copy sits a step under the page's body: 16, regular weight.
+const PANEL_TEXT = "text-cta leading-normal font-normal tracking-normal";
+---
+
+<div class="flex flex-col gap-24 md:gap-32">
+  {
+    hasImage(author.image) && (
+      <div class={cx('media-frame shrink-0', isPage ? 'w-196 lg:w-280' : 'w-140 md:w-196')}>
+        <SanityImage
+          media={{ image: author.image, aspectRatio: PORTRAIT_ASPECT_RATIO }}
+          sizes={sizes}
+          class="w-full object-cover"
+        />
+      </div>
+    )
+  }
+
+  <div class={cx('flex flex-col', isPage ? 'gap-8 pt-8' : 'gap-4')}>
+    <Heading id={headingId} class={cx('text-balance text-ink', isPage ? 'text-headline-10' : 'text-title')}>{author.name}</Heading>
+    {author.role && <p class={cx('text-ink-muted', isPage ? 'text-body-10' : PANEL_TEXT)}>{author.role}</p>}
+  </div>
+
+  <SanityRichText value={localizedBlocks(author.bio)} class={isPage ? 'text-body-10' : PANEL_TEXT} />
+
+  {
+    links.length > 0 && (
+      <ul class="flex flex-wrap gap-x-24 gap-y-8">
+        {links.map((link) => (
+          <li>
+            <SanityLink
+              link={link}
+              class={cx('group/link inline-flex items-center gap-6 rounded-4 text-ink', isPage ? 'text-body-10' : PANEL_TEXT)}
+            >
+              <span class="underline decoration-1 underline-offset-4 transition-colors duration-150 ease-out group-hover/link:text-ink-muted motion-reduce:transition-none">
+                {link.text}
+              </span>
+              {link.openInNewTab && <Icon name="arrow-up-right" class="size-12" />}
+            </SanityLink>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</div>

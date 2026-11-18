@@ -1,0 +1,14 @@
+language js(typescript, jsx)
+
+// A single `a ? b : c` is fine. A ternary with another ternary as a branch has more than two outcomes.
+`$test ? $yes : $no` where {
+  or {
+    $yes <: or { `$_ ? $_ : $_`, `($_ ? $_ : $_)` },
+    $no <: or { `$_ ? $_ : $_`, `($_ ? $_ : $_)` }
+  },
+  register_diagnostic(
+    span = $test,
+    message = "Ternary chain: more than two branches. Use run(() => { if (...) { return a; } if (...) { return b; } return c; }) from ~/features/utils/common (sanity/lib/run inside sanity/ and scripts/), or early returns. A single `a ? b : c` is fine.",
+    severity = "error"
+  )
+}

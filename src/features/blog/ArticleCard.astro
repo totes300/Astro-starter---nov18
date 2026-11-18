@@ -1,0 +1,40 @@
+---
+import { hasImage, type ImageFragmentResult } from "~/features/sanity/media/fragment";
+import SanityImage from "../../sanity/media/SanityImage.astro";
+
+// An article as a card: the whole card is the link, so no arrow, border or shadow competes with the cover.
+type Props = {
+  href: string;
+  title?: string | null;
+  date?: string | null;
+  /** The line under the title: author and categories, or only categories where the author is the page. */
+  meta?: string | null;
+  image?: ImageFragmentResult | null;
+  heading?: "h2" | "h3";
+};
+
+const { href, title, date, meta, image, heading: Heading = "h2" } = Astro.props;
+---
+
+<a
+  href={href}
+  class="group/card flex h-full flex-col gap-16 rounded-16 bg-surface p-8 pb-20 transition-colors duration-150 ease-out hover:bg-hairline motion-reduce:transition-none lg:gap-20 lg:pb-24"
+>
+  <div class="media-frame aspect-16/10 w-full shrink-0 bg-hairline">
+    {
+      hasImage(image) && (
+        <SanityImage
+          media={{ image, aspectRatio: 16 / 10 }}
+          sizes="100vw lg:400px"
+          class="size-full object-cover transition-transform duration-500 ease-out motion-safe:group-hover/card:scale-104"
+        />
+      )
+    }
+  </div>
+
+  <div class="flex flex-col gap-8 px-8">
+    {date && <p class="text-eyebrow text-ink-muted tabular-nums">{date}</p>}
+    <Heading class="text-body-20 leading-heading font-medium text-balance text-ink">{title}</Heading>
+    {meta && <p class="text-eyebrow font-normal text-ink-muted">{meta}</p>}
+  </div>
+</a>

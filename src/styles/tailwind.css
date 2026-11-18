@@ -1,0 +1,190 @@
+@import "tailwindcss";
+@import "./fonts.css";
+@import "./colors.css";
+@import "./typography.css";
+@import "./animations.css";
+@import "./global.css";
+@import "./sanity-rich-text.css";
+
+@theme {
+  /* Content width bounds (px); also reference values for responsive calc. */
+  --layout-min-w: 375;
+  --layout-max-w: 1600;
+
+  /* Reset default TW breakpoints. */
+  --breakpoint-\*: initial;
+
+  /* rem in media queries scales with the browser default font size, not :root, so a larger
+     default triggers mobile breakpoints sooner. */
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 96rem;
+
+  /* One unit should match one pixel given that 1rem equals 16px. */
+  --spacing: 0.0625rem;
+
+  /* One em of the surrounding text, as `size-em`, `h-em` or `gap-em`: icons and spacing that scale with their type. */
+  --spacing-em: 1em;
+
+  /* A headline's measure, as `max-w-headline`: short enough to break into balanced lines. */
+  --container-headline: 20ch;
+
+  /* Reset default TW border-radius. */
+  --radius-\*: initial;
+
+  --radius-4: --spacing(4);
+  --radius-6: --spacing(6);
+  --radius-8: --spacing(8);
+  --radius-12: --spacing(12);
+  --radius-14: --spacing(14);
+  --radius-16: --spacing(16);
+  --radius-24: --spacing(24);
+  --radius-full: 9999px;
+}
+
+/* The shell's measurements: the header's height, plus the content column's width and side margin.
+   Kept together on `:root` rather than split into `@theme` so the three read as one definition and
+   share one consumption syntax, and because two of them change at `lg`, which a `:root` declaration
+   states directly. */
+@layer base {
+  :root {
+    /* The site header's full height, as `h-(--header-height)`. Page chrome that has to clear the
+       header measures it with `top-(--header-height)` or `scroll-mt-(--header-height)`. */
+    --header-height: --spacing(64);
+
+    @variant lg {
+      --header-height: --spacing(96);
+    }
+
+    /* The content column's width, as `max-w-(--page-width)`. Distinct from `--layout-max-w`, which
+       is only the upper bound the fluid type scales interpolate to. */
+    --page-width: --spacing(1200);
+
+    /* The page's side margin, as `px-(--page-gutter)`. Every page-level container reads it, so the
+       distance from the viewport to the content is one value rather than a pair per container. */
+    --page-gutter: --spacing(16);
+
+    @variant lg {
+      --page-gutter: --spacing(48);
+    }
+
+    /* The two columns inside the content width, as `grid-cols-(--label-grid)`: the 258 label column (an
+       eyebrow, a meta line) beside the content. `LabelColumns` draws the same split with flex. */
+    --label-grid: --spacing(258) minmax(0, 1fr);
+  }
+}
+
+/* Gate hover on true hover input, so touch taps never trigger it (cascades to group-hover/peer-hover). */
+@custom-variant hover {
+  @media (hover: hover) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
+/* Visually hide the native scrollbar. */
+@utility scrollbar-invisible {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  scrollbar-color: transparent transparent;
+}
+
+/* A superscript raised by its own em, at a smaller size. Zero line-height: the inline box has no height to
+   push the line box open with, so the raise cannot inflate the line it sits on. */
+@utility superscript {
+  vertical-align: 0.4em;
+  font-size: 0.6em;
+  line-height: 0;
+}
+
+/* An inline icon nudged down onto the text's baseline rather than its x-height. */
+@utility align-icon {
+  vertical-align: -0.125em;
+}
+
+/* Anchor positioning: above the anchor, aligned to its start edge, flipping sideways when it would overflow. */
+@utility position-area-top-span-left {
+  position-area: top span-left;
+}
+
+@utility position-try-flip-inline {
+  position-try-fallbacks: flip-inline;
+}
+
+/* A control inside a label takes the label's cursor, so a disabled choice does not look clickable. */
+@utility cursor-inherit {
+  cursor: inherit;
+}
+
+/* Inline code, sized by its own em so it sits in any text size. */
+@utility inline-code {
+  font-size: 0.875em;
+}
+
+/* Code reads as typed: Geist Mono would otherwise join `==` and `=>` into arrows. */
+@utility no-ligatures {
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
+}
+
+/* Content media: radius 8, clipped, and a 1px black outline drawn over the picture (an inset shadow on an
+   image paints under it), so a pale picture still has an edge on white. */
+@utility media-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-8);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.1);
+    pointer-events: none;
+  }
+}
+
+/* Elevation for a floating surface (a menu, a panel): no border, a soft two-layer shadow. */
+@utility shadow-float {
+  box-shadow:
+    0 12px 32px rgb(0 0 0 / 0.1),
+    0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+@utility shadow-panel {
+  box-shadow:
+    0 24px 64px rgb(0 0 0 / 0.12),
+    0 2px 8px rgb(0 0 0 / 0.06);
+}
+
+/* The white pill on a surface band, lifted on hover instead of recoloured. */
+@utility shadow-lift {
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.08),
+    0 0 0 1px rgb(0 0 0 / 0.06);
+}
+
+/* A plate that glides between items: quartic ease-out, so it arrives fast and settles. `data-still` seats it
+   in place for the first placement, which has nowhere to travel from. */
+@utility plate-glide {
+  transition-property: translate, width, opacity;
+  transition-duration: 450ms, 450ms, 150ms;
+  transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1), cubic-bezier(0.25, 1, 0.5, 1), ease-out;
+
+  &[data-still] {
+    transition-property: opacity;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition-property: opacity;
+  }
+}

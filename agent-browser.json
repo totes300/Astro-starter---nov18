@@ -1,0 +1,7 @@
+{
+  "$schema": "https://agent-browser.dev/schema.json",
+  "screenshotDir": "browser-checks",
+  "idleTimeout": "10m",
+  "maxOutput": 50000,
+  "contentBoundaries": true
+}

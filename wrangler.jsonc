@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The site, the embedded Studio and /api/* as one Worker; caching and purging: docs/sanity/revalidation-and-caching.md
+  // No account_id: CI and local runs name the account through CLOUDFLARE_ACCOUNT_ID, so the repo moves between owners as is.
+  // One Worker, production. No version URLs: a version on one runs with the live secrets and can never be deleted.
+  "name": "tca-astro",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  // Until the custom domain is attached; then false, so the site answers only behind the zone's WAF.
+  "workers_dev": true,
+  "preview_urls": false,
+  "cache": { "enabled": true },
+  // The front door decides per request, so only the renderer it forwards to sits behind the Workers Cache.
+  "exports": {
+    "default": { "type": "worker", "cache": { "enabled": false } },
+    "Renderer": { "type": "worker", "cache": { "enabled": true } }
+  },
+  "d1_databases": [{ "binding": "ROUTE_CACHE_DB", "database_name": "tca-astro-route-cache" }],
+  "queues": {
+    "producers": [{ "binding": "ROUTE_CACHE_PURGE", "queue": "tca-astro-route-cache-purge" }],
+    "consumers": [
+      {
+        "queue": "tca-astro-route-cache-purge",
+        "max_batch_size": 100,
+        "max_batch_timeout": 10,
+        "max_concurrency": 1,
+        "max_retries": 20
+      }
+    ]
+  }
+}

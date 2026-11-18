@@ -1,0 +1,101 @@
+---
+import type { ComponentProps } from "astro/types";
+import FormCheckbox from "~/components/Form/FormCheckbox.astro";
+import FormChoiceGroup from "~/components/Form/FormChoiceGroup.astro";
+import FormDate from "~/components/Form/FormDate.astro";
+import FormDropdown from "~/components/Form/FormDropdown.astro";
+import FormInput from "~/components/Form/FormInput.astro";
+import FormPhone from "~/components/Form/FormPhone.astro";
+import FormTextarea from "~/components/Form/FormTextarea.astro";
+import LabelColumns from "~/components/LabelColumns.astro";
+import SubmitButton from "~/components/SubmitButton.astro";
+import { uiStrings } from "~/features/i18n/strings";
+import SectionFrame from "~/features/page-builder/SectionFrame.astro";
+import type { SectionLayoutSettings } from "~/features/page-builder/section-layout";
+import { PUBLIC_TURNSTILE_SITE_KEY } from "~/lib/env";
+import SanityRichText from "../../../../sanity/rich-text/SanityRichText.astro";
+import { contactFormMessages } from "./contact-form-rules";
+import { CONTACT_FORM_TURNSTILE_ACTION, contactForm, contactFormOptions } from "./validate-contact-form";
+
+// The form's fields come from its own rules, so the CMS supplies only the copy that introduces it.
+type Props = {
+  eyebrow?: string | null;
+  headline?: string | null;
+  text?: ComponentProps<typeof SanityRichText>["value"];
+  settings?: SectionLayoutSettings | null;
+  id?: string;
+  [key: `data-${string}`]: string | undefined;
+};
+
+const { eyebrow, headline, text, settings, id, ...data } = Astro.props;
+
+const locale = Astro.locals.locale;
+const { form: formStrings, contactForm: strings } = uiStrings(locale);
+const { labels } = strings;
+
+// Name and asterisk come off the schema, so a rule change cannot leave the form behind (see docs/features/forms.md).
+const { field } = contactForm(locale);
+const options = contactFormOptions(locale);
+const validationMessages = JSON.stringify(contactFormMessages(strings.validation));
+
+const endpoint = "/api/contact-form";
+---
+
+<SectionFrame settings={settings} id={id} {...data}>
+  <LabelColumns sticky labelClass="lg:pt-16">
+    {eyebrow && <p slot="label" class="text-eyebrow text-ink-muted">{eyebrow}</p>}
+    <div class="flex flex-col gap-24">
+      {headline && <h2 class="text-headline-10 text-balance whitespace-pre-line">{headline}</h2>}
+      <SanityRichText animated value={text} class="text-body-10" />
+    </div>
+    <contact-form
+      class="mt-40 block lg:mt-64"
+      data-success-message={strings.success}
+      data-error-message={formStrings.error}
+      data-validation-messages={validationMessages}
+      data-human-check-message={formStrings.humanCheckFailed}
+    >
+      <form method="post" action={endpoint} class="flex flex-col gap-40">
+        <div class="grid gap-12 md:grid-cols-2">
+          <FormInput {...field('firstName')} label={labels.firstName} autocomplete="given-name" />
+          <FormInput {...field('lastName')} label={labels.lastName} autocomplete="family-name" />
+          <FormInput {...field('email')} label={labels.email} type="email" autocomplete="email" />
+          <FormPhone {...field('phone')} label={labels.phone} />
+          <FormDropdown {...field('topic')} label={labels.topic} options={options.topic} />
+          <FormDate {...field('startDate')} label={labels.startDate} />
+        </div>
+
+        <div class="flex flex-col gap-32">
+          <FormChoiceGroup {...field('budget')} type="radio" label={labels.budget} options={options.budget} />
+
+          <FormChoiceGroup {...field('services')} type="checkbox" label={labels.services} options={options.services} />
+        </div>
+
+        <FormTextarea {...field('message')} label={labels.message} />
+
+        <div
+          data-human-check
+          data-site-key={PUBLIC_TURNSTILE_SITE_KEY}
+          data-action={CONTACT_FORM_TURNSTILE_ACTION}
+          class="empty:hidden"
+        />
+
+        <div class="flex flex-col gap-24 md:flex-row md:items-center md:justify-between">
+          <FormCheckbox {...field('consent')} label={labels.consent} />
+
+          <SubmitButton label={strings.send} doneLabel={strings.sent} disabled class="h-52 w-full md:h-44 md:w-auto" />
+        </div>
+
+        <noscript>
+          <p class="text-eyebrow text-danger">{formStrings.needsJavaScript}</p>
+        </noscript>
+
+        <p data-form-message class="text-eyebrow empty:hidden" aria-live="polite" />
+      </form>
+    </contact-form>
+  </LabelColumns>
+</SectionFrame>
+
+<script>
+  import './ContactFormElement'
+</script>

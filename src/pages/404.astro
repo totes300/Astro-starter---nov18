@@ -1,0 +1,13 @@
+---
+import { uiStrings } from "~/features/i18n/strings";
+import SiteError from "~/features/site/site-error/SiteError.astro";
+import Web from "~/layouts/Web.astro";
+import { loadSite, seo } from "../sanity/seo";
+
+const { data: site } = await loadSite(Astro);
+const seoProps = seo(site, { title: uiStrings(Astro.locals.locale).notFound, robots: "noindex,follow" });
+---
+
+<Web {...seoProps} noindex>
+  <SiteError />
+</Web>
